@@ -3,7 +3,6 @@ import { ProFormSwitch } from '@ant-design/pro-components';
 import { grey } from '@ant-design/colors';
 import { colorMethod, groupByPermission } from '@/config/utils';
 import { IPermission, IRole } from '@/types/backend';
-import 'styles/reset.scss';
 import type { ProFormInstance } from '@ant-design/pro-components';
 import { useEffect } from 'react';
 import type { CollapseProps } from 'antd';

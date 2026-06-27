@@ -28,6 +28,9 @@ const JobMap: React.FC<IProps> = ({ lat, lng, companyName, height = 300 }) => {
                 height: typeof height === "number" ? `${height}px` : height,
                 width: "100%",
                 borderRadius: "10px",
+                position: "relative",
+                zIndex: 0,
+                isolation: "isolate",
             }}
         >
             <TileLayer

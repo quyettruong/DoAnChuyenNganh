@@ -20,8 +20,10 @@ const JobPage = () => {
     const isFetching = useAppSelector(state => state.job.isFetching);
     const meta = useAppSelector(state => state.job.meta);
     const jobs = useAppSelector(state => state.job.result);
+    const currentUser = useAppSelector(state => state.account.user);
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
+    const isHR = currentUser.role?.name?.toUpperCase() === "HR";
 
     const handleDeleteJob = async (id: string | undefined) => {
         if (id) {
@@ -205,6 +207,7 @@ const JobPage = () => {
         delete clone.level;
 
         let temp = queryString.stringify(clone);
+        temp = temp ? `${temp}&admin=true` : 'admin=true';
 
         let sortBy = "";
         const fields = ["name", "salary", "createdAt", "updatedAt"];
@@ -234,7 +237,9 @@ const JobPage = () => {
             >
                 <DataTable<IJob>
                     actionRef={tableRef}
-                    headerTitle="Danh sách Jobs"
+                    headerTitle={isHR && currentUser.company?.name
+                        ? `Danh sách Jobs - ${currentUser.company.name}`
+                        : "Danh sách Jobs"}
                     rowKey="id"
                     loading={isFetching}
                     columns={columns}

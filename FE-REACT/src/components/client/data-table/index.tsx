@@ -4,7 +4,6 @@ import {
     ProTableProps,
 } from '@ant-design/pro-components';
 import vi_VN from 'antd/locale/vi_VN';
-import enUS from 'antd/lib/locale/en_US';
 import { ConfigProvider } from 'antd';
 
 const DataTable = <
@@ -39,7 +38,8 @@ const DataTable = <
                 dataSource={dataSource}
                 postData={postData}
                 pagination={pagination}
-                bordered
+                bordered={false}
+                cardBordered={false}
                 // sticky={sticky}
                 loading={loading}
                 rowKey={rowKey}

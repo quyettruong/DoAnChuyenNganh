@@ -10,4 +10,6 @@ import lombok.Setter;
 public class ResUpdateResumeDTO {
     private Instant updatedAt;
     private String updatedBy;
+    private String status;
+    private String statusNote;
 }

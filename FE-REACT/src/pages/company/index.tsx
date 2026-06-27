@@ -4,7 +4,7 @@ import CompanyCard from '@/components/client/card/company.card';
 
 const ClientCompanyPage = (props: any) => {
     return (
-        <div className={styles["container"]} style={{ marginTop: 20 }}>
+        <div className={`${styles["container"]} ${styles["listing-page"]}`}>
             <Row gutter={[20, 20]}>
                 <Col span={24}>
                     <CompanyCard

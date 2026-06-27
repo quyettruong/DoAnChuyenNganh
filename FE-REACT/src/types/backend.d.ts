@@ -21,6 +21,7 @@ export interface IAccount {
         id: string;
         email: string;
         name: string;
+        avatar?: string;
         role: {
             id: string;
             name: string;
@@ -31,6 +32,11 @@ export interface IAccount {
                 method: string;
                 module: string;
             }[]
+        },
+        company?: {
+            id: string;
+            name: string;
+            logo?: string;
         }
     }
 }
@@ -123,6 +129,7 @@ export interface IResume {
 
     url: string;
     status: string;
+    statusNote?: string;
 
     // BE trả sẵn theo job đã expand
     job?: {
@@ -140,6 +147,14 @@ export interface IResume {
 
     // tóm tắt CV bằng AI
     summaryAi?: string;
+    aiMatchScore?: number;
+    aiRecommendation?: string;
+    aiMatchedSkills?: string[];
+    aiMissingSkills?: string[];
+    aiStrengths?: string[];
+    aiWeaknesses?: string[];
+    aiEvaluation?: string;
+    aiEvaluatedAt?: string;
 
     // giữ nguyên
     companyId?: string | {
@@ -164,6 +179,37 @@ export interface IResume {
     deletedAt?: string | null;
     createdAt?: string;
     updatedAt?: string;
+}
+
+export interface INotification {
+    id: string | number;
+    title: string;
+    message: string;
+    type: string;
+    targetType?: string;
+    targetId?: string | number;
+    read: boolean;
+    createdAt?: string;
+    readAt?: string;
+}
+
+export interface IUserCv {
+    id?: string;
+    title: string;
+    templateCode?: string;
+    theme?: string;
+    cvData: string;
+    defaultCv?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface IUserCvPayload {
+    title: string;
+    templateCode?: string;
+    theme?: string;
+    cvData: string;
+    defaultCv?: boolean;
 }
 
 
@@ -195,4 +241,3 @@ export interface IRole {
     createdAt?: string;
     updatedAt?: string;
 }
-

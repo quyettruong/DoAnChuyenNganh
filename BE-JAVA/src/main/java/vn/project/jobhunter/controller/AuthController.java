@@ -73,7 +73,9 @@ public class AuthController {
                     currentUserDB.getId(),
                     currentUserDB.getEmail(),
                     currentUserDB.getName(),
-                    currentUserDB.getRole());
+                    currentUserDB.getAvatar(),
+                    currentUserDB.getRole(),
+                    buildCompanyLogin(currentUserDB));
             res.setUser(userLogin);
         }
 
@@ -110,7 +112,9 @@ public class AuthController {
             userLogin.setId(currentUserDB.getId());
             userLogin.setEmail(currentUserDB.getEmail());
             userLogin.setName(currentUserDB.getName());
+            userLogin.setAvatar(currentUserDB.getAvatar());
             userLogin.setRole(currentUserDB.getRole());
+            userLogin.setCompany(buildCompanyLogin(currentUserDB));
             userGetAccount.setUser(userLogin);
         }
 
@@ -143,7 +147,9 @@ public class AuthController {
                     currentUserDB.getId(),
                     currentUserDB.getEmail(),
                     currentUserDB.getName(),
-                    currentUserDB.getRole());
+                    currentUserDB.getAvatar(),
+                    currentUserDB.getRole(),
+                    buildCompanyLogin(currentUserDB));
             res.setUser(userLogin);
         }
 
@@ -233,6 +239,17 @@ public class AuthController {
                 .build();
 
         return ResponseEntity.ok(res);
+    }
+
+    private ResLoginDTO.CompanyLogin buildCompanyLogin(User user) {
+        if (user == null || user.getCompany() == null) {
+            return null;
+        }
+
+        return new ResLoginDTO.CompanyLogin(
+                user.getCompany().getId(),
+                user.getCompany().getName(),
+                user.getCompany().getLogo());
     }
 
 }

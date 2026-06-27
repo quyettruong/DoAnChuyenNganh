@@ -7,10 +7,13 @@ import {
     Typography,
     message,
     Select,
+    Progress,
+    Space,
 } from "antd";
 import dayjs from "dayjs";
 import { IResume } from "@/types/backend";
 import {
+    callEvaluateResume,
     callSummarizeResume,
     callUpdateResumeStatus,
 } from "@/config/api";
@@ -18,6 +21,21 @@ import { ALL_PERMISSIONS } from "@/config/permissions";
 import Access from "@/components/share/access";
 
 const { Paragraph, Text } = Typography;
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+    if (error && typeof error === "object") {
+        const apiError = error as {
+            message?: string | string[];
+            response?: { data?: { message?: string | string[] } };
+        };
+        const message = apiError.response?.data?.message ?? apiError.message;
+
+        if (Array.isArray(message)) return message.join(", ");
+        if (typeof message === "string" && message.trim()) return message;
+    }
+
+    return fallback;
+};
 
 interface IProps {
     open: boolean;
@@ -32,12 +50,21 @@ const statusColor: Record<string, string> = {
     REVIEWING: "processing",
     APPROVED: "success",
     REJECTED: "error",
+    FULL: "warning",
+};
+
+const recommendationText: Record<string, string> = {
+    APPROVED: "Nên ưu tiên",
+    REVIEWING: "Cần xem xét thêm",
+    REJECTED: "Chưa phù hợp",
 };
 
 const ViewDetailResume: React.FC<IProps> = (props) => {
     const { open, onClose, dataInit, reloadTable, setDataInit } = props;
 
-    const [loading, setLoading] = useState(false);
+    const [summaryLoading, setSummaryLoading] = useState(false);
+    const [evaluationLoading, setEvaluationLoading] = useState(false);
+    const [statusLoading, setStatusLoading] = useState(false);
     const [currentStatus, setCurrentStatus] = useState<string | undefined>(
         dataInit?.status,
     );
@@ -53,11 +80,24 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
             open &&
             dataInit?.id &&
             !dataInit.summaryAi &&
-            !loading
+            !summaryLoading
         ) {
             handleSummarize();
         }
     }, [open, dataInit?.id]);
+
+    // Sau khi đã có tóm tắt, tự đánh giá nếu CV chưa có điểm phù hợp.
+    useEffect(() => {
+        if (
+            open &&
+            dataInit?.id &&
+            dataInit.summaryAi &&
+            typeof dataInit.aiMatchScore !== "number" &&
+            !evaluationLoading
+        ) {
+            handleEvaluate();
+        }
+    }, [open, dataInit?.id, dataInit?.summaryAi, dataInit?.aiMatchScore]);
 
 
     const handleClose = () => {
@@ -72,7 +112,7 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
         }
 
         try {
-            setLoading(true);
+            setSummaryLoading(true);
 
             // res = { statusCode, message, data: { resumeId, summaryAi } }
             const res = await callSummarizeResume(dataInit.id);
@@ -91,9 +131,37 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
                 message.error(res?.message || "Không thể tóm tắt CV");
             }
         } catch (e) {
-            message.error("Lỗi khi tóm tắt CV");
+            message.error(getApiErrorMessage(e, "Lỗi khi tóm tắt CV"));
         } finally {
-            setLoading(false);
+            setSummaryLoading(false);
+        }
+    };
+
+    const handleEvaluate = async () => {
+        if (!dataInit?.id) {
+            message.error("Resume không hợp lệ");
+            return;
+        }
+
+        try {
+            setEvaluationLoading(true);
+
+            const res = await callEvaluateResume(dataInit.id);
+
+            if (res?.statusCode === 200) {
+                message.success("AI đã đánh giá CV thành công");
+                props.setDataInit({
+                    ...dataInit,
+                    ...res.data,
+                });
+                reloadTable();
+            } else {
+                message.error(res?.message || "Không thể đánh giá CV bằng AI");
+            }
+        } catch (e) {
+            message.error(getApiErrorMessage(e, "Lỗi khi đánh giá CV bằng AI"));
+        } finally {
+            setEvaluationLoading(false);
         }
     };
 
@@ -115,7 +183,7 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
         }
 
         try {
-            setLoading(true);
+            setStatusLoading(true);
 
             // gửi body { id, status } đúng với BE
             const res = await callUpdateResumeStatus({
@@ -134,9 +202,47 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
         } catch (e) {
             message.error("Không thể cập nhật trạng thái");
         } finally {
-            setLoading(false);
+            setStatusLoading(false);
         }
     };
+
+    const normalizeList = (value?: string[] | string) => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value.filter(Boolean);
+        return value
+            .split(/\r?\n/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+    };
+
+    const renderTagList = (items: string[] | undefined, color: string, emptyText: string) => {
+        const list = normalizeList(items);
+        if (!list.length) return <Text type="secondary">{emptyText}</Text>;
+        return (
+            <Space size={[6, 6]} wrap>
+                {list.map((item) => (
+                    <Tag key={item} color={color}>
+                        {item}
+                    </Tag>
+                ))}
+            </Space>
+        );
+    };
+
+    const renderBulletList = (items: string[] | string | undefined, emptyText: string) => {
+        const list = normalizeList(items);
+        if (!list.length) return <Text type="secondary">{emptyText}</Text>;
+        return (
+            <ul className="ai-evaluation-list">
+                {list.map((item) => (
+                    <li key={item}>{item}</li>
+                ))}
+            </ul>
+        );
+    };
+
+    const score = dataInit?.aiMatchScore;
+    const hasEvaluation = typeof score === "number";
 
 
 
@@ -149,6 +255,20 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
             }
             onCancel={handleClose}
             footer={[
+                <Access
+                    key="evaluate"
+                    permission={ALL_PERMISSIONS.RESUMES.AI_EVALUATE}
+                    hideChildren
+                >
+                    <Button
+                        type="primary"
+                        loading={evaluationLoading}
+                        onClick={handleEvaluate}
+                    >
+                        AI đánh giá CV
+                    </Button>
+                </Access>,
+
                 // nút AI summary: chỉ ẩn nút khi không đủ quyền, KHÔNG render 403
                 <Access
                     key="ai"
@@ -156,8 +276,7 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
                     hideChildren
                 >
                     <Button
-                        type="primary"
-                        loading={loading}
+                        loading={summaryLoading}
                         onClick={handleSummarize}
                     >
                         Tóm tắt CV bằng AI
@@ -173,7 +292,7 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
                     <Button
                         type="primary"
                         ghost
-                        loading={loading}
+                        loading={statusLoading}
                         onClick={handleUpdateStatus}
                     >
                         Lưu trạng thái
@@ -203,6 +322,7 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
                                 { value: "REVIEWING", label: "REVIEWING" },
                                 { value: "APPROVED", label: "APPROVED" },
                                 { value: "REJECTED", label: "REJECTED" },
+                                { value: "FULL", label: "FULL" },
                             ]}
                         />
                         {currentStatus && (
@@ -213,6 +333,10 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
                                 {currentStatus}
                             </Tag>
                         )}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="Thông báo" span={2}>
+                        {dataInit.statusNote || "Chưa có thông báo trạng thái."}
                     </Descriptions.Item>
 
                     <Descriptions.Item label="Email">
@@ -245,6 +369,71 @@ const ViewDetailResume: React.FC<IProps> = (props) => {
                                 "DD-MM-YYYY HH:mm:ss",
                             )
                             : ""}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="Đánh giá phù hợp (AI)" span={2}>
+                        {hasEvaluation ? (
+                            <div className="ai-evaluation-panel">
+                                <div className="ai-evaluation-head">
+                                    <Progress
+                                        type="circle"
+                                        size={76}
+                                        percent={score ?? 0}
+                                        strokeColor={
+                                            (score ?? 0) >= 80
+                                                ? "#16a34a"
+                                                : (score ?? 0) >= 55
+                                                    ? "#2563eb"
+                                                    : "#dc2626"
+                                        }
+                                    />
+                                    <div className="ai-evaluation-summary">
+                                        <Space size={[8, 8]} wrap>
+                                            <Tag color={statusColor[dataInit.aiRecommendation || ""] || "default"}>
+                                                {recommendationText[dataInit.aiRecommendation || ""] ||
+                                                    dataInit.aiRecommendation ||
+                                                    "Chưa có gợi ý"}
+                                            </Tag>
+                                            {dataInit.aiEvaluatedAt && (
+                                                <Text type="secondary">
+                                                    {dayjs(dataInit.aiEvaluatedAt).format("DD-MM-YYYY HH:mm:ss")}
+                                                </Text>
+                                            )}
+                                        </Space>
+                                        <Paragraph>
+                                            {dataInit.aiEvaluation || "AI chưa có nhận xét chi tiết."}
+                                        </Paragraph>
+                                    </div>
+                                </div>
+
+                                <div className="ai-evaluation-grid">
+                                    <div>
+                                        <Text strong>Kỹ năng khớp</Text>
+                                        <div className="ai-evaluation-body">
+                                            {renderTagList(dataInit.aiMatchedSkills, "green", "Chưa phát hiện kỹ năng khớp.")}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Text strong>Kỹ năng thiếu</Text>
+                                        <div className="ai-evaluation-body">
+                                            {renderTagList(dataInit.aiMissingSkills, "orange", "Chưa phát hiện thiếu sót lớn.")}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Text strong>Điểm mạnh</Text>
+                                        {renderBulletList(dataInit.aiStrengths, "Chưa có điểm mạnh nổi bật.")}
+                                    </div>
+                                    <div>
+                                        <Text strong>Điểm cần xem lại</Text>
+                                        {renderBulletList(dataInit.aiWeaknesses, "Chưa có điểm cần xem lại.")}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <Text type="secondary">
+                                Chưa có đánh giá. Bấm nút "AI đánh giá CV" để so CV với yêu cầu công việc.
+                            </Text>
+                        )}
                     </Descriptions.Item>
 
                     {/* TÓM TẮT CV BẰNG AI */}

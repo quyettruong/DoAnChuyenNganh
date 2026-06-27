@@ -13,6 +13,7 @@ import { CheckSquareOutlined } from "@ant-design/icons";
 import enUS from 'antd/lib/locale/en_US';
 import dayjs from 'dayjs';
 import { IJob, ISkill } from "@/types/backend";
+import { useAppSelector } from "@/redux/hooks";
 
 interface ISkillSelect {
     label: string;
@@ -32,24 +33,59 @@ const ViewUpsertJob = (props: any) => {
     const id = params?.get("id"); // job id
     const [dataUpdate, setDataUpdate] = useState<IJob | null>(null);
     const [form] = Form.useForm();
+    const currentUser = useAppSelector(state => state.account.user);
+    const isHR = currentUser.role?.name?.toUpperCase() === "HR";
+    const hrCompanyOption = currentUser.company?.id ? {
+        label: currentUser.company.name as string,
+        value: `${currentUser.company.id}@#$${currentUser.company.logo ?? ""}`,
+        key: currentUser.company.id
+    } : null;
+
+    const normalizeCompanyValue = (companyValue: any) => {
+        return Array.isArray(companyValue) ? companyValue[0] : companyValue;
+    }
 
     useEffect(() => {
         const init = async () => {
             const temp = await fetchSkillList();
             setSkills(temp);
 
+            if (isHR && !hrCompanyOption) {
+                notification.error({
+                    message: 'Không thể quản lý job',
+                    description: 'Tài khoản HR của bạn chưa được gán công ty.'
+                });
+                navigate('/admin/job');
+                return;
+            }
+
+            if (!id && isHR && hrCompanyOption) {
+                setCompanies([hrCompanyOption]);
+                form.setFieldsValue({ company: hrCompanyOption });
+            }
+
             if (id) {
-                const res = await callFetchJobById(id);
+                const res = await callFetchJobById(id, true);
                 if (res && res.data) {
+                    if (isHR && hrCompanyOption && `${res.data.company?.id}` !== `${hrCompanyOption.key}`) {
+                        notification.error({
+                            message: 'Không có quyền chỉnh sửa',
+                            description: 'HR chỉ được chỉnh sửa job thuộc công ty của mình.'
+                        });
+                        navigate('/admin/job');
+                        return;
+                    }
+
+                    const selectedCompany = {
+                        label: res.data.company?.name as string,
+                        value: `${res.data.company?.id}@#$${res.data.company?.logo}` as string,
+                        key: res.data.company?.id
+                    };
+                    const companyFieldValue = isHR && hrCompanyOption ? hrCompanyOption : selectedCompany;
+
                     setDataUpdate(res.data);
                     setValue(res.data.description);
-                    setCompanies([
-                        {
-                            label: res.data.company?.name as string,
-                            value: `${res.data.company?.id}@#$${res.data.company?.logo}` as string,
-                            key: res.data.company?.id
-                        }
-                    ])
+                    setCompanies([companyFieldValue])
 
                     //skills
                     const temp: any = res.data?.skills?.map((item: ISkill) => {
@@ -61,11 +97,7 @@ const ViewUpsertJob = (props: any) => {
                     })
                     form.setFieldsValue({
                         ...res.data,
-                        company: {
-                            label: res.data.company?.name as string,
-                            value: `${res.data.company?.id}@#$${res.data.company?.logo}` as string,
-                            key: res.data.company?.id
-                        },
+                        company: companyFieldValue,
                         skills: temp
                     })
                 }
@@ -73,10 +105,14 @@ const ViewUpsertJob = (props: any) => {
         }
         init();
         return () => form.resetFields()
-    }, [id])
+    }, [id, currentUser.company?.id, currentUser.role?.name])
 
     // Usage of DebounceSelect
     async function fetchCompanyList(name: string): Promise<ICompanySelect[]> {
+        if (isHR) {
+            return hrCompanyOption ? [hrCompanyOption] : [];
+        }
+
         const res = await callFetchCompany(`page=1&size=100&name ~ '${name}'`);
         if (res && res.data) {
             const list = res.data.result;
@@ -107,7 +143,10 @@ const ViewUpsertJob = (props: any) => {
     const onFinish = async (values: any) => {
         if (dataUpdate?.id) {
             //update
-            const cp = values?.company?.value?.split('@#$');
+            const selectedCompany = isHR && hrCompanyOption
+                ? hrCompanyOption
+                : normalizeCompanyValue(values?.company);
+            const cp = selectedCompany?.value?.split('@#$');
 
             let arrSkills = [];
             if (typeof values?.skills?.[0] === 'object') {
@@ -121,7 +160,7 @@ const ViewUpsertJob = (props: any) => {
                 skills: arrSkills,
                 company: {
                     id: cp && cp.length > 0 ? cp[0] : "",
-                    name: values.company.label,
+                    name: selectedCompany?.label as string,
                     logo: cp && cp.length > 1 ? cp[1] : ""
                 },
                 location: values.location,
@@ -149,14 +188,17 @@ const ViewUpsertJob = (props: any) => {
             }
         } else {
             //create
-            const cp = values?.company?.value?.split('@#$');
+            const selectedCompany = isHR && hrCompanyOption
+                ? hrCompanyOption
+                : normalizeCompanyValue(values?.company);
+            const cp = selectedCompany?.value?.split('@#$');
             const arrSkills = values?.skills?.map((item: string) => { return { id: +item } });
             const job = {
                 name: values.name,
                 skills: arrSkills,
                 company: {
                     id: cp && cp.length > 0 ? cp[0] : "",
-                    name: values.company.label,
+                    name: selectedCompany?.label as string,
                     logo: cp && cp.length > 1 ? cp[1] : ""
                 },
                 location: values.location,
@@ -325,13 +367,20 @@ const ViewUpsertJob = (props: any) => {
                                         <DebounceSelect
                                             allowClear
                                             showSearch
+                                            disabled={isHR}
                                             defaultValue={companies}
                                             value={companies}
-                                            placeholder="Chọn công ty"
+                                            placeholder={isHR ? "Công ty của tài khoản HR" : "Chọn công ty"}
                                             fetchOptions={fetchCompanyList}
                                             onChange={(newValue: any) => {
-                                                if (newValue?.length === 0 || newValue?.length === 1) {
-                                                    setCompanies(newValue as ICompanySelect[]);
+                                                if (isHR) return;
+
+                                                const nextValue = Array.isArray(newValue)
+                                                    ? newValue
+                                                    : newValue ? [newValue] : [];
+
+                                                if (nextValue.length <= 1) {
+                                                    setCompanies(nextValue as ICompanySelect[]);
                                                 }
                                             }}
                                             style={{ width: '100%' }}

@@ -1,0 +1,9 @@
+Đang load dữ liệu CV để train TF-IDF (summarize_cv.py)...
+Số CV dùng để train: 300
+Vocab EN: 5000
+Không có CV tiếng Việt để train -> bỏ qua TF-IDF tiếng Việt.
+Số CV EN: 300
+Số CV VI: 0
+Khởi tạo TF-IDF xong, sẵn sàng để dùng trong app.py.
+ * Serving Flask app 'app'
+ * Debug mode: on

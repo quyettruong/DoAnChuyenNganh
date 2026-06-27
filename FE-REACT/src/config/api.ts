@@ -1,4 +1,4 @@
-import { IBackendRes, ICompany, IAccount, IUser, IModelPaginate, IGetAccount, IJob, IResume, IPermission, IRole, ISkill } from '@/types/backend';
+import { IBackendRes, ICompany, IAccount, IUser, IModelPaginate, IGetAccount, IJob, IResume, IPermission, IRole, ISkill, IUserCv, IUserCvPayload, INotification } from '@/types/backend';
 import axios from 'config/axios-customize';
 import axiosOrigin from "axios";
 
@@ -9,6 +9,7 @@ Module Auth
 
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string;
+const AI_URL = (import.meta.env.VITE_AI_URL as string) || 'http://localhost:8000';
 export const callRegister = (name: string, email: string, password: string, age: number, gender: string, address: string) => {
     return axios.post<IBackendRes<IUser>>('/api/v1/auth/register', { name, email, password, age, gender, address })
 }
@@ -38,6 +39,18 @@ export const callResetPasswordPublic = (token: string, newPassword: string) => {
         newPassword,
     });
 };
+
+export const callSupportChat = async (payload: Record<string, any>): Promise<IBackendRes<any>> => {
+    try {
+        const res = await axios.post<IBackendRes<any>>('/api/v1/support-chat', payload) as unknown as IBackendRes<any>;
+        if (res?.statusCode && Number(res.statusCode) >= 500) throw new Error(res.message || 'Support chat failed');
+        return res;
+    } catch (error) {
+        const directRes = await axiosOrigin.post<IBackendRes<any>>(`${AI_URL}/support-chat`, payload);
+        return directRes.data;
+    }
+};
+
 /**
  * Upload single file
  */
@@ -56,11 +69,12 @@ export const callUploadSingleFile = (file: any, folderType: string) => {
     });
 }
 
-export const callUpdateProfile = (name: string, address: string, age: number) => {
+export const callUpdateProfile = (name: string, address: string, age: number, avatar?: string) => {
     return axios.put<IBackendRes<IAccount>>("/api/v1/auth/profile", {
         name,
         address,
         age,
+        avatar,
     });
 };
 
@@ -160,8 +174,19 @@ export const callFetchJob = (query: string) => {
     return axios.get<IBackendRes<IModelPaginate<IJob>>>(`/api/v1/jobs?${query}`);
 }
 
-export const callFetchJobById = (id: string) => {
-    return axios.get<IBackendRes<IJob>>(`/api/v1/jobs/${id}`);
+export const callFetchJobById = (id: string, admin = false): Promise<IBackendRes<IJob>> => {
+    return axios.get<IBackendRes<IJob>>(`/api/v1/jobs/${id}${admin ? '?admin=true' : ''}`) as unknown as Promise<IBackendRes<IJob>>;
+}
+
+export const callGenerateCvFromJob = (
+    id: string | number,
+    payload: {
+        userPrompt?: string;
+        currentCv?: Record<string, any>;
+        profile?: Record<string, any>;
+    }
+): Promise<IBackendRes<any>> => {
+    return axios.post<IBackendRes<any>>(`/api/v1/jobs/${id}/ai-cv`, payload) as unknown as Promise<IBackendRes<any>>;
 }
 
 /**
@@ -207,9 +232,61 @@ export const callFetchResumeByUser = () => {
     return axios.get<IBackendRes<IModelPaginate<IResume>>>(`/api/v1/resumes/by-user`);
 }
 
-export const callSummarizeResume = (id: number | string) => {
-    return axios.post<IBackendRes<any>>(`/api/v1/resumes/${id}/ai-summary`);
+export const callSummarizeResume = (id: number | string): Promise<IBackendRes<any>> => {
+    return axios.post<IBackendRes<any>>(`/api/v1/resumes/${id}/ai-summary`) as unknown as Promise<IBackendRes<any>>;
 };
+
+export const callEvaluateResume = (id: number | string): Promise<IBackendRes<any>> => {
+    return axios.post<IBackendRes<any>>(`/api/v1/resumes/${id}/ai-evaluate`) as unknown as Promise<IBackendRes<any>>;
+};
+
+/**
+ *
+Module Notification
+ */
+export const callFetchNotifications = (query: string = "page=1&size=8"): Promise<IBackendRes<IModelPaginate<INotification>>> => {
+    return axios.get<IBackendRes<IModelPaginate<INotification>>>(`/api/v1/notifications?${query}`) as unknown as Promise<IBackendRes<IModelPaginate<INotification>>>;
+}
+
+export const callCountUnreadNotifications = (): Promise<IBackendRes<{ count: number }>> => {
+    return axios.get<IBackendRes<{ count: number }>>("/api/v1/notifications/unread-count") as unknown as Promise<IBackendRes<{ count: number }>>;
+}
+
+export const callMarkNotificationAsRead = (id: string | number): Promise<IBackendRes<INotification>> => {
+    return axios.put<IBackendRes<INotification>>(`/api/v1/notifications/${id}/read`) as unknown as Promise<IBackendRes<INotification>>;
+}
+
+export const callMarkAllNotificationsAsRead = (): Promise<IBackendRes<void>> => {
+    return axios.put<IBackendRes<void>>("/api/v1/notifications/read-all") as unknown as Promise<IBackendRes<void>>;
+}
+
+/**
+ *
+Module User CV
+ */
+export const callCreateUserCv = (payload: IUserCvPayload): Promise<IBackendRes<IUserCv>> => {
+    return axios.post<IBackendRes<IUserCv>>('/api/v1/user-cvs', payload) as unknown as Promise<IBackendRes<IUserCv>>;
+}
+
+export const callUpdateUserCv = (id: string | number, payload: IUserCvPayload): Promise<IBackendRes<IUserCv>> => {
+    return axios.put<IBackendRes<IUserCv>>(`/api/v1/user-cvs/${id}`, payload) as unknown as Promise<IBackendRes<IUserCv>>;
+}
+
+export const callFetchUserCvs = (query: string): Promise<IBackendRes<IModelPaginate<IUserCv>>> => {
+    return axios.get<IBackendRes<IModelPaginate<IUserCv>>>(`/api/v1/user-cvs?${query}`) as unknown as Promise<IBackendRes<IModelPaginate<IUserCv>>>;
+}
+
+export const callFetchUserCvById = (id: string | number): Promise<IBackendRes<IUserCv>> => {
+    return axios.get<IBackendRes<IUserCv>>(`/api/v1/user-cvs/${id}`) as unknown as Promise<IBackendRes<IUserCv>>;
+}
+
+export const callDeleteUserCv = (id: string | number): Promise<IBackendRes<IUserCv>> => {
+    return axios.delete<IBackendRes<IUserCv>>(`/api/v1/user-cvs/${id}`) as unknown as Promise<IBackendRes<IUserCv>>;
+}
+
+export const callSetDefaultUserCv = (id: string | number): Promise<IBackendRes<IUserCv>> => {
+    return axios.put<IBackendRes<IUserCv>>(`/api/v1/user-cvs/${id}/default`) as unknown as Promise<IBackendRes<IUserCv>>;
+}
 
 
 /**
@@ -259,4 +336,3 @@ export const callFetchRole = (query: string) => {
 export const callFetchRoleById = (id: string) => {
     return axios.get<IBackendRes<IRole>>(`/api/v1/roles/${id}`);
 }
-

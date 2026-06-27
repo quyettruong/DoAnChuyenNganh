@@ -4,6 +4,9 @@ import java.time.Instant;
 import jakarta.persistence.Transient;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -37,7 +40,12 @@ public class Resume {
     private String url;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 20)
     private ResumeStateEnum status;
+
+    @Column(columnDefinition = "TEXT")
+    private String statusNote;
 
     private Instant createdAt;
     private Instant updatedAt;
@@ -47,6 +55,28 @@ public class Resume {
 
     @Column(columnDefinition = "TEXT")
     private String summaryAi;
+
+    private Integer aiMatchScore;
+
+    @Column(length = 40)
+    private String aiRecommendation;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiMatchedSkills;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiMissingSkills;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiStrengths;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiWeaknesses;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiEvaluation;
+
+    private Instant aiEvaluatedAt;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

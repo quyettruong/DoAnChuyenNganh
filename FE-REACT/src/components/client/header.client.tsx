@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
-import { CodeOutlined, ContactsOutlined, FireOutlined, LogoutOutlined, MenuFoldOutlined, RiseOutlined, TwitterOutlined } from '@ant-design/icons';
-import { Avatar, Drawer, Dropdown, MenuProps, Space, message } from 'antd';
+import { CodeOutlined, ContactsOutlined, EnvironmentOutlined, FileTextOutlined, FireOutlined, HomeOutlined, LogoutOutlined, MenuFoldOutlined, RiseOutlined } from '@ant-design/icons';
+import { Avatar, Drawer, Dropdown, Grid, MenuProps, Space, message } from 'antd';
 import { Menu, ConfigProvider } from 'antd';
 import styles from '@/styles/client.module.scss';
-import { isMobile } from 'react-device-detect';
-import { FaReact } from 'react-icons/fa';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import { callLogout } from '@/config/api';
 import { setLogoutAction } from '@/redux/slice/accountSlide';
 import ManageAccount from './modal/manage.account';
+import NotificationBell from './notification-bell';
 
 const Header = (props: any) => {
     const navigate = useNavigate();
@@ -18,12 +17,16 @@ const Header = (props: any) => {
 
     const isAuthenticated = useAppSelector(state => state.account.isAuthenticated);
     const user = useAppSelector(state => state.account.user);
+    const avatarUrl = user?.avatar ? `${import.meta.env.VITE_BACKEND_URL}/storage/avatar/${user.avatar}` : undefined;
+    const screens = Grid.useBreakpoint();
+    const isMobileHeader = !screens.md;
     const [openMobileMenu, setOpenMobileMenu] = useState<boolean>(false);
 
     const [current, setCurrent] = useState('home');
     const location = useLocation();
 
     const [openMangeAccount, setOpenManageAccount] = useState<boolean>(false);
+    const [manageAccountTab, setManageAccountTab] = useState<string>("user-resume");
 
     useEffect(() => {
         setCurrent(location.pathname);
@@ -33,7 +36,7 @@ const Header = (props: any) => {
         {
             label: <Link to={'/'}>Trang Chủ</Link>,
             key: '/',
-            icon: <TwitterOutlined />,
+            icon: <HomeOutlined />,
         },
         {
             label: <Link to={'/job'}>Việc Làm IT</Link>,
@@ -44,6 +47,16 @@ const Header = (props: any) => {
             label: <Link to={'/company'}>Top Công ty IT</Link>,
             key: '/company',
             icon: <RiseOutlined />,
+        },
+        {
+            label: <Link to={'/job-map'}>Bản đồ</Link>,
+            key: '/job-map',
+            icon: <EnvironmentOutlined />,
+        },
+        {
+            label: <Link to={'/cv-builder'}>Tạo CV</Link>,
+            key: '/cv-builder',
+            icon: <FileTextOutlined />,
         }
     ];
 
@@ -51,6 +64,15 @@ const Header = (props: any) => {
 
     const onClick: MenuProps['onClick'] = (e) => {
         setCurrent(e.key);
+    };
+
+    const handleToggleMobileMenu = () => {
+        setOpenMobileMenu((previous) => !previous);
+    };
+
+    const handleMobileMenuClick: MenuProps['onClick'] = (e) => {
+        onClick(e);
+        setOpenMobileMenu(false);
     };
 
     const handleLogout = async () => {
@@ -62,14 +84,29 @@ const Header = (props: any) => {
         }
     }
 
+    const handleOpenResumeApplications = () => {
+        setManageAccountTab("user-resume");
+        setOpenManageAccount(true);
+    };
+
+    const handleOpenManageAccount = () => {
+        setManageAccountTab("user-update-info");
+        setOpenManageAccount(true);
+    };
+
     const itemsDropdown = [
         {
             label: <label
                 style={{ cursor: 'pointer' }}
-                onClick={() => setOpenManageAccount(true)}
+                onClick={handleOpenManageAccount}
             >Quản lý tài khoản</label>,
             key: 'manage-account',
             icon: <ContactsOutlined />
+        },
+        {
+            label: <Link to={"/my-cv"}>Quản lý CV cá nhân</Link>,
+            key: 'my-cv',
+            icon: <FileTextOutlined />
         },
         ...(user.role?.permissions?.length ? [{
             label: <Link
@@ -89,30 +126,40 @@ const Header = (props: any) => {
         },
     ];
 
-    const itemsMobiles = [...items, ...itemsDropdown];
+    const authMobileItems = isAuthenticated === false
+        ? [{
+            label: <Link to={'/login'}>Đăng Nhập</Link>,
+            key: 'login',
+            icon: <ContactsOutlined />
+        }]
+        : itemsDropdown;
+
+    const itemsMobiles = [...items, ...authMobileItems];
 
     return (
         <>
             <div className={styles["header-section"]}>
                 <div className={styles["container"]}>
-                    {!isMobile ?
-                        <div style={{ display: "flex", gap: 30 }}>
-                            <div className={styles['brand']} >
-                                <FaReact onClick={() => navigate('/')} title='Quyet' />
+                    {!isMobileHeader ?
+                        <div className={styles["desktop-shell"]}>
+                            <div className={styles['brand']} onClick={() => navigate('/')} >
+                                <span className={styles["brand-mark"]}><CodeOutlined /></span>
+                                <span className={styles["brand-text"]}>IT Career</span>
                             </div>
                             <div className={styles['top-menu']}>
                                 <ConfigProvider
                                     theme={{
                                         token: {
-                                            colorPrimary: '#fff',
-                                            colorBgContainer: '#222831',
-                                            colorText: '#a7a7a7',
+                                            colorPrimary: '#2563eb',
+                                            colorBgContainer: '#ffffff',
+                                            colorText: '#344054',
                                         },
                                     }}
                                 >
 
                                     <Menu
-                                        // onClick={onClick}
+                                        onClick={onClick}
+                                        disabledOverflow
                                         selectedKeys={[current]}
                                         mode="horizontal"
                                         items={items}
@@ -122,12 +169,15 @@ const Header = (props: any) => {
                                     {isAuthenticated === false ?
                                         <Link to={'/login'}>Đăng Nhập</Link>
                                         :
-                                        <Dropdown menu={{ items: itemsDropdown }} trigger={['click']}>
-                                            <Space style={{ cursor: "pointer" }}>
-                                                <span>Welcome {user?.name}</span>
-                                                <Avatar> {user?.name?.substring(0, 2)?.toUpperCase()} </Avatar>
-                                            </Space>
-                                        </Dropdown>
+                                        <>
+                                            <NotificationBell onOpenResumeApplications={handleOpenResumeApplications} />
+                                            <Dropdown menu={{ items: itemsDropdown }} trigger={['click']}>
+                                                <Space className={styles["account-trigger"]}>
+                                                    <span>{user?.name}</span>
+                                                    <Avatar src={avatarUrl}> {user?.name?.substring(0, 2)?.toUpperCase()} </Avatar>
+                                                </Space>
+                                            </Dropdown>
+                                        </>
                                     }
 
                                 </div>
@@ -136,19 +186,37 @@ const Header = (props: any) => {
                         </div>
                         :
                         <div className={styles['header-mobile']}>
-                            <span>Your APP</span>
-                            <MenuFoldOutlined onClick={() => setOpenMobileMenu(true)} />
+                            <span className={styles["mobile-brand"]}><CodeOutlined /> IT Career</span>
+                            <div className={styles["mobile-actions"]}>
+                                <NotificationBell onOpenResumeApplications={handleOpenResumeApplications} />
+                                <button
+                                    type="button"
+                                    className={`${styles["mobile-menu-button"]} ${openMobileMenu ? styles["mobile-menu-button-open"] : ""}`}
+                                    aria-label="Mở menu điều hướng"
+                                    aria-expanded={openMobileMenu}
+                                    onClick={handleToggleMobileMenu}
+                                >
+                                    <MenuFoldOutlined />
+                                </button>
+                            </div>
                         </div>
                     }
                 </div>
             </div>
-            <Drawer title="Chức năng"
+            <Drawer
+                title={(
+                    <span className={styles["mobile-drawer-title"]}>
+                        <span className={styles["mobile-drawer-mark"]}><CodeOutlined /></span>
+                        IT Career
+                    </span>
+                )}
                 placement="right"
+                rootClassName={styles["mobile-drawer"]}
                 onClose={() => setOpenMobileMenu(false)}
                 open={openMobileMenu}
             >
                 <Menu
-                    onClick={onClick}
+                    onClick={handleMobileMenuClick}
                     selectedKeys={[current]}
                     mode="vertical"
                     items={itemsMobiles}
@@ -157,6 +225,7 @@ const Header = (props: any) => {
             <ManageAccount
                 open={openMangeAccount}
                 onClose={setOpenManageAccount}
+                defaultActiveKey={manageAccountTab}
             />
         </>
     )

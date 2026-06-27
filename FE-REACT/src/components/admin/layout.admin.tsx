@@ -157,20 +157,21 @@ const LayoutAdmin = () => {
     return (
         <>
             <Layout
-                style={{ minHeight: '100vh' }}
                 className="layout-admin"
             >
                 {!isMobile ?
                     <Sider
                         theme='light'
+                        className="admin-sider"
                         collapsible
                         collapsed={collapsed}
                         onCollapse={(value) => setCollapsed(value)}>
-                        <div style={{ height: 32, margin: 16, textAlign: 'center' }}>
-                            <BugOutlined />  ADMIN
+                        <div className="admin-brand">
+                            <span className="admin-brand-icon"><BugOutlined /></span>
+                            {!collapsed && <span>JobHunter Admin</span>}
                         </div>
                         <Menu
-                            selectedKeys={[activeMenu]}
+                            selectedKeys={[activeMenu.startsWith('/admin/job') ? '/admin/job' : activeMenu]}
                             mode="inline"
                             items={menuItems}
                             onClick={(e) => setActiveMenu(e.key)}
@@ -178,7 +179,7 @@ const LayoutAdmin = () => {
                     </Sider>
                     :
                     <Menu
-                        selectedKeys={[activeMenu]}
+                        selectedKeys={[activeMenu.startsWith('/admin/job') ? '/admin/job' : activeMenu]}
                         items={menuItems}
                         onClick={(e) => setActiveMenu(e.key)}
                         mode="horizontal"
@@ -187,28 +188,33 @@ const LayoutAdmin = () => {
 
                 <Layout>
                     {!isMobile &&
-                        <div className='admin-header' style={{ display: "flex", justifyContent: "space-between", marginRight: 20 }}>
-                            <Button
-                                type="text"
-                                icon={collapsed ? React.createElement(MenuUnfoldOutlined) : React.createElement(MenuFoldOutlined)}
-                                onClick={() => setCollapsed(!collapsed)}
-                                style={{
-                                    fontSize: '16px',
-                                    width: 64,
-                                    height: 64,
-                                }}
-                            />
+                        <div className='admin-header'>
+                            <Space size={12}>
+                                <Button
+                                    type="text"
+                                    icon={collapsed ? React.createElement(MenuUnfoldOutlined) : React.createElement(MenuFoldOutlined)}
+                                    onClick={() => setCollapsed(!collapsed)}
+                                    style={{
+                                        fontSize: '16px',
+                                        width: 44,
+                                        height: 44,
+                                    }}
+                                />
+                                <div className="admin-header-title">
+                                    <strong>Trang quản trị</strong>
+                                    <span>Quản lý công ty, việc làm, hồ sơ và phân quyền</span>
+                                </div>
+                            </Space>
 
                             <Dropdown menu={{ items: itemsDropdown }} trigger={['click']}>
-                                <Space style={{ cursor: "pointer" }}>
-                                    Welcome {user?.name}
+                                <div className="admin-user-trigger">
+                                    <span>Welcome {user?.name}</span>
                                     <Avatar> {user?.name?.substring(0, 2)?.toUpperCase()} </Avatar>
-
-                                </Space>
+                                </div>
                             </Dropdown>
                         </div>
                     }
-                    <Content style={{ padding: '15px' }}>
+                    <Content className="admin-content">
                         <Outlet />
                     </Content>
                     {/* <Footer style={{ padding: 10, textAlign: 'center' }}>

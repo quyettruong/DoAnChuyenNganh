@@ -1,6 +1,7 @@
 package vn.project.jobhunter.domain.response.resume;
 
 import java.time.Instant;
+import java.util.List;
 
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -19,6 +20,8 @@ public class ResFetchResumeDTO {
     @Enumerated(EnumType.STRING)
     private ResumeStateEnum status;
 
+    private String statusNote;
+
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -30,6 +33,14 @@ public class ResFetchResumeDTO {
     private JobResume job;
 
     private String summaryAi;
+    private Integer aiMatchScore;
+    private String aiRecommendation;
+    private List<String> aiMatchedSkills;
+    private List<String> aiMissingSkills;
+    private List<String> aiStrengths;
+    private List<String> aiWeaknesses;
+    private String aiEvaluation;
+    private Instant aiEvaluatedAt;
 
     @Getter
     @Setter

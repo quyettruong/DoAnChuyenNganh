@@ -1,13 +1,15 @@
 import { callFetchJob } from '@/config/api';
 import { convertSlug, getLocationName } from '@/config/utils';
 import { IJob } from '@/types/backend';
-import { EnvironmentOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { Card, Col, Empty, Pagination, Row, Spin } from 'antd';
-import { useState, useEffect } from 'react';
+import { ArrowRightOutlined, EnvironmentOutlined, HeartFilled, HeartOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Button, Card, Col, Empty, Pagination, Row, Spin, Tag, Tooltip } from 'antd';
+import { MouseEvent, useState, useEffect } from 'react';
 import { isMobile } from 'react-device-detect';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import styles from 'styles/client.module.scss';
 import { sfIn } from "spring-filter-query-builder";
+import { isJobSaved, SAVED_JOBS_EVENT, toggleSavedJob } from '@/utils/saved-jobs';
+import { useAppSelector } from '@/redux/hooks';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -29,6 +31,8 @@ const JobCard = (props: IProps) => {
     const [total, setTotal] = useState(0);
     const [filter, setFilter] = useState("");
     const [sortQuery, setSortQuery] = useState("sort=updatedAt,desc");
+    const [, setSavedVersion] = useState(0);
+    const isAuthenticated = useAppSelector(state => state.account.isAuthenticated);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
@@ -36,6 +40,13 @@ const JobCard = (props: IProps) => {
     useEffect(() => {
         fetchJob();
     }, [current, pageSize, filter, sortQuery, location]);
+
+    useEffect(() => {
+        const syncSavedState = () => setSavedVersion(prev => prev + 1);
+        window.addEventListener(SAVED_JOBS_EVENT, syncSavedState);
+
+        return () => window.removeEventListener(SAVED_JOBS_EVENT, syncSavedState);
+    }, []);
 
     const fetchJob = async () => {
         setIsLoading(true)
@@ -90,6 +101,19 @@ const JobCard = (props: IProps) => {
         navigate(`/job/${slug}?id=${item.id}`)
     }
 
+    const handleToggleSavedJob = (event: MouseEvent<HTMLElement>, item: IJob) => {
+        event.stopPropagation();
+
+        if (!isAuthenticated) {
+            const callback = `${location.pathname}${location.search}`;
+            navigate(`/login?callback=${encodeURIComponent(callback)}`);
+            return;
+        }
+
+        toggleSavedJob(item);
+        setSavedVersion(prev => prev + 1);
+    }
+
     return (
         <div className={`${styles["card-job-section"]}`}>
             <div className={`${styles["job-content"]}`}>
@@ -97,17 +121,21 @@ const JobCard = (props: IProps) => {
                     <Row gutter={[20, 20]}>
                         <Col span={24}>
                             <div className={isMobile ? styles["dflex-mobile"] : styles["dflex-pc"]}>
-                                <span className={styles["title"]}>Công Việc Mới Nhất</span>
+                                <div>
+                                    <span className={styles["title"]}>Công Việc Mới Nhất</span>
+                                    <p className={styles["section-subtitle"]}>Cập nhật liên tục các vị trí IT đang tuyển.</p>
+                                </div>
                                 {!showPagination &&
-                                    <Link to="job">Xem tất cả</Link>
+                                    <Link className={styles["section-link"]} to="job">Xem tất cả</Link>
                                 }
                             </div>
                         </Col>
 
                         {displayJob?.map(item => {
+                            const saved = isJobSaved(item.id);
                             return (
                                 <Col span={24} md={12} key={item.id}>
-                                    <Card size="small" title={null} hoverable
+                                    <Card className={styles["job-card"]} size="small" title={null} hoverable
                                         onClick={() => handleViewDetailJob(item)}
                                     >
                                         <div className={styles["card-job-content"]}>
@@ -118,10 +146,36 @@ const JobCard = (props: IProps) => {
                                                 />
                                             </div>
                                             <div className={styles["card-job-right"]}>
+                                                <div className={styles["job-company-row"]}>
+                                                    <span>{item.company?.name || "IT Company"}</span>
+                                                    <div className={styles["job-card-actions"]}>
+                                                        {item.level && <Tag color="blue">{item.level}</Tag>}
+                                                        <Tooltip title={saved ? "Bỏ lưu việc làm" : "Lưu việc làm"}>
+                                                            <Button
+                                                                shape="circle"
+                                                                type="text"
+                                                                aria-label={saved ? "Bỏ lưu việc làm" : "Lưu việc làm"}
+                                                                className={`${styles["job-save-button"]} ${saved ? styles["job-save-button-active"] : ""}`}
+                                                                icon={saved ? <HeartFilled /> : <HeartOutlined />}
+                                                                onClick={(event) => handleToggleSavedJob(event, item)}
+                                                            />
+                                                        </Tooltip>
+                                                    </div>
+                                                </div>
                                                 <div className={styles["job-title"]}>{item.name}</div>
-                                                <div className={styles["job-location"]}><EnvironmentOutlined style={{ color: '#58aaab' }} />&nbsp;{getLocationName(item.location)}</div>
-                                                <div><ThunderboltOutlined style={{ color: 'orange' }} />&nbsp;{(item.salary + "")?.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} đ</div>
-                                                <div className={styles["job-updatedAt"]}>{item.updatedAt ? dayjs(item.updatedAt).locale('en').fromNow() : dayjs(item.createdAt).locale('en').fromNow()}</div>
+                                                <div className={styles["job-skills"]}>
+                                                    {item.skills?.slice(0, 3).map(skill => (
+                                                        <Tag key={skill.id || skill.name}>{skill.name}</Tag>
+                                                    ))}
+                                                </div>
+                                                <div className={styles["job-info-grid"]}>
+                                                    <span><EnvironmentOutlined /> {getLocationName(item.location)}</span>
+                                                    <span><ThunderboltOutlined /> {(item.salary + "")?.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} đ</span>
+                                                </div>
+                                                <div className={styles["job-card-footer"]}>
+                                                    <span>{item.updatedAt ? dayjs(item.updatedAt).locale('en').fromNow() : dayjs(item.createdAt).locale('en').fromNow()}</span>
+                                                    <span className={styles["job-cta"]}>Xem chi tiết <ArrowRightOutlined /></span>
+                                                </div>
                                             </div>
                                         </div>
 

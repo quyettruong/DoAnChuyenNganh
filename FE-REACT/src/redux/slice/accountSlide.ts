@@ -19,6 +19,12 @@ interface IState {
         id: string;
         email: string;
         name: string;
+        avatar?: string;
+        company?: {
+            id?: string;
+            name?: string;
+            logo?: string;
+        };
         role: {
             id?: string;
             name?: string;
@@ -43,6 +49,8 @@ const initialState: IState = {
         id: "",
         email: "",
         name: "",
+        avatar: "",
+        company: undefined,
         role: {
             id: "",
             name: "",
@@ -69,6 +77,8 @@ export const accountSlide = createSlice({
             state.user.id = action?.payload?.id;
             state.user.email = action.payload.email;
             state.user.name = action.payload.name;
+            state.user.avatar = action.payload.avatar;
+            state.user.company = action.payload.company;
             state.user.role = action?.payload?.role;
 
             if (!action?.payload?.user?.role) state.user.role = {};
@@ -76,11 +86,14 @@ export const accountSlide = createSlice({
         },
         setLogoutAction: (state, action) => {
             localStorage.removeItem('access_token');
+            localStorage.removeItem('itcareer_cv_builder_draft');
             state.isAuthenticated = false;
             state.user = {
                 id: "",
                 email: "",
                 name: "",
+                avatar: "",
+                company: undefined,
                 role: {
                     id: "",
                     name: "",
@@ -110,6 +123,8 @@ export const accountSlide = createSlice({
                 state.user.id = action?.payload?.user?.id;
                 state.user.email = action.payload.user?.email;
                 state.user.name = action.payload.user?.name;
+                state.user.avatar = action.payload.user?.avatar;
+                state.user.company = action.payload.user?.company;
                 state.user.role = action?.payload?.user?.role;
                 if (!action?.payload?.user?.role) state.user.role = {};
                 state.user.role.permissions = action?.payload?.user?.role?.permissions ?? [];

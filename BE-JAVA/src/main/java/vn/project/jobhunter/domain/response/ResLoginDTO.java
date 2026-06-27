@@ -23,7 +23,19 @@ public class ResLoginDTO {
         private long id;
         private String email;
         private String name;
+        private String avatar;
         private Role role;
+        private CompanyLogin company;
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class CompanyLogin {
+        private long id;
+        private String name;
+        private String logo;
     }
 
     @Getter

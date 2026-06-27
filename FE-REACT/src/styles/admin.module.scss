@@ -1,11 +1,48 @@
 .upsert-job-container {
-    background-color: white;
-    padding: 10px 30px;
-    border-radius: 5px;
-    min-height: 100vh;
+    min-height: calc(100vh - 108px);
     height: auto;
+    padding: 24px 28px 30px;
+    border: 1px solid #e6edf5;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, #ffffff, #f8fbff);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
 
     .title {
-        padding: 10px 0 20px 0;
+        padding: 0 0 22px 0;
+
+        :global(.ant-breadcrumb) {
+            color: #667085;
+            font-weight: 600;
+        }
+    }
+
+    :global(.ant-pro-form) {
+        :global(.ant-row) {
+            row-gap: 16px;
+        }
+    }
+
+    :global(.ant-form-item-label > label) {
+        color: #344054;
+        font-weight: 700;
+    }
+
+    :global(.ql-toolbar.ql-snow) {
+        border-color: #dbe6f3;
+        border-radius: 8px 8px 0 0;
+        background: #f8fafc;
+    }
+
+    :global(.ql-container.ql-snow) {
+        border-color: #dbe6f3;
+        border-radius: 0 0 8px 8px;
+        background: #ffffff;
+    }
+}
+
+@media (max-width: 767px) {
+    .upsert-job-container {
+        padding: 16px;
     }
 }

@@ -56,7 +56,7 @@ public class CompanyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(newCompany);
     }
 
-    @PutMapping("companies/{id}")
+    @PutMapping("/companies")
     public ResponseEntity<Company> putCompany(@Valid @RequestBody Company newInfo) {
         Company updateCompany = this.companyService.handleUpdateCompany(newInfo);
         return ResponseEntity.ok(updateCompany);

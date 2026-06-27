@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet-routing-machine";
+import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 
 interface Props {
     start: [number, number];
@@ -22,7 +23,10 @@ const RoutingControl: React.FC<Props> = ({ start, end }) => {
             ],
             addWaypoints: false,
             routeWhileDragging: false,
-            show: false,
+            show: true,
+            collapsible: true,
+            showAlternatives: false,
+            fitSelectedRoutes: true,
             lineOptions: {
                 styles: [{ color: "#1d4ed8", weight: 5 }],
             },

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createBrowserRouter,
   Outlet,
@@ -8,31 +8,42 @@ import {
 import { useAppDispatch, useAppSelector } from '@/redux/hooks';
 import NotFound from 'components/share/not.found';
 import Loading from 'components/share/loading';
-import LoginPage from 'pages/auth/login';
-import RegisterPage from 'pages/auth/register';
-import ForgotPassword from 'pages/auth/ForgotPassword';
-import ResetPassword from 'pages/auth/ResetPassword';
-import LayoutAdmin from 'components/admin/layout.admin';
 import ProtectedRoute from 'components/share/protected-route.ts';
 import Header from 'components/client/header.client';
 import Footer from 'components/client/footer.client';
-import HomePage from 'pages/home';
 import styles from 'styles/app.module.scss';
-import DashboardPage from './pages/admin/dashboard';
-import CompanyPage from './pages/admin/company';
-import PermissionPage from './pages/admin/permission';
-import ResumePage from './pages/admin/resume';
-import RolePage from './pages/admin/role';
-import UserPage from './pages/admin/user';
 import { fetchAccount } from './redux/slice/accountSlide';
 import LayoutApp from './components/share/layout.app';
-import ViewUpsertJob from './components/admin/job/upsert.job';
-import ClientJobPage from './pages/job';
-import ClientJobDetailPage from './pages/job/detail';
-import ClientCompanyPage from './pages/company';
-import ClientCompanyDetailPage from './pages/company/detail';
-import JobTabs from './pages/admin/job/job.tabs';
-import JobMapPage from './components/client/map/JobMapPage';
+import FloatingSavedJobs from './components/client/saved-jobs/FloatingSavedJobs';
+import FloatingSupportChat from './components/client/support-chat/FloatingSupportChat';
+
+const LoginPage = lazy(() => import('pages/auth/login'));
+const RegisterPage = lazy(() => import('pages/auth/register'));
+const ForgotPassword = lazy(() => import('pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('pages/auth/ResetPassword'));
+const LayoutAdmin = lazy(() => import('components/admin/layout.admin'));
+const HomePage = lazy(() => import('pages/home'));
+const DashboardPage = lazy(() => import('./pages/admin/dashboard'));
+const CompanyPage = lazy(() => import('./pages/admin/company'));
+const PermissionPage = lazy(() => import('./pages/admin/permission'));
+const ResumePage = lazy(() => import('./pages/admin/resume'));
+const RolePage = lazy(() => import('./pages/admin/role'));
+const UserPage = lazy(() => import('./pages/admin/user'));
+const ViewUpsertJob = lazy(() => import('./components/admin/job/upsert.job'));
+const ClientJobPage = lazy(() => import('./pages/job'));
+const ClientJobDetailPage = lazy(() => import('./pages/job/detail'));
+const ClientCompanyPage = lazy(() => import('./pages/company'));
+const ClientCompanyDetailPage = lazy(() => import('./pages/company/detail'));
+const JobTabs = lazy(() => import('./pages/admin/job/job.tabs'));
+const JobMapPage = lazy(() => import('./components/client/map/JobMapPage'));
+const CvBuilderPage = lazy(() => import('./pages/cv-builder'));
+const MyCvPage = lazy(() => import('./pages/my-cv'));
+
+const withPageLoading = (element: React.ReactNode) => (
+  <Suspense fallback={<Loading />}>
+    {element}
+  </Suspense>
+);
 
 const LayoutClient = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,10 +51,7 @@ const LayoutClient = () => {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (rootRef && rootRef.current) {
-      rootRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [location]);
 
   return (
@@ -53,6 +61,8 @@ const LayoutClient = () => {
         <Outlet context={[searchTerm, setSearchTerm]} />
       </div>
       <Footer />
+      <FloatingSupportChat />
+      <FloatingSavedJobs />
     </div>
   )
 }
@@ -71,80 +81,82 @@ export default function App() {
     dispatch(fetchAccount())
   }, [])
 
-  const router = createBrowserRouter([
+  const router = useMemo(() => createBrowserRouter([
     {
-      path: "/",
+      path: '/',
       element: (<LayoutApp><LayoutClient /></LayoutApp>),
       errorElement: <NotFound />,
       children: [
-        { index: true, element: <HomePage /> },
-        { path: "job", element: <ClientJobPage /> },
-        { path: "job/:id", element: <ClientJobDetailPage /> },
-        { path: "company", element: <ClientCompanyPage /> },
-        { path: "company/:id", element: <ClientCompanyDetailPage /> },
-        { path: "job-map", element: <JobMapPage /> },
+        { index: true, element: withPageLoading(<HomePage />) },
+        { path: 'job', element: withPageLoading(<ClientJobPage />) },
+        { path: 'job/:id', element: withPageLoading(<ClientJobDetailPage />) },
+        { path: 'company', element: withPageLoading(<ClientCompanyPage />) },
+        { path: 'company/:id', element: withPageLoading(<ClientCompanyDetailPage />) },
+        { path: 'job-map', element: withPageLoading(<JobMapPage />) },
+        { path: 'cv-builder', element: withPageLoading(<CvBuilderPage />) },
+        { path: 'my-cv', element: withPageLoading(<MyCvPage />) },
       ],
     },
 
     {
-      path: "/admin",
-      element: (<LayoutApp><LayoutAdmin /> </LayoutApp>),
+      path: '/admin',
+      element: (<LayoutApp>{withPageLoading(<LayoutAdmin />)}</LayoutApp>),
       errorElement: <NotFound />,
       children: [
         {
           index: true, element:
             <ProtectedRoute>
-              <DashboardPage />
+              {withPageLoading(<DashboardPage />)}
             </ProtectedRoute>
         },
         {
-          path: "company",
+          path: 'company',
           element:
             <ProtectedRoute>
-              <CompanyPage />
+              {withPageLoading(<CompanyPage />)}
             </ProtectedRoute>
         },
         {
-          path: "user",
+          path: 'user',
           element:
             <ProtectedRoute>
-              <UserPage />
+              {withPageLoading(<UserPage />)}
             </ProtectedRoute>
         },
 
         {
-          path: "job",
+          path: 'job',
           children: [
             {
               index: true,
-              element: <ProtectedRoute><JobTabs /></ProtectedRoute>
+              element: <ProtectedRoute>{withPageLoading(<JobTabs />)}</ProtectedRoute>
             },
             {
-              path: "upsert", element:
-                <ProtectedRoute><ViewUpsertJob /></ProtectedRoute>
+              path: 'upsert', element:
+                <ProtectedRoute>{withPageLoading(<ViewUpsertJob />)}</ProtectedRoute>
             }
           ]
         },
 
         {
-          path: "resume",
+          path: 'resume',
           element:
             <ProtectedRoute>
-              <ResumePage />
+              {withPageLoading(<ResumePage />)}
             </ProtectedRoute>
         },
         {
-          path: "permission",
+          path: 'permission',
           element:
             <ProtectedRoute>
-              <PermissionPage />
+              {withPageLoading(<PermissionPage />)}
             </ProtectedRoute>
         },
         {
-          path: "role",
+          path: 'role',
           element:
             <ProtectedRoute>
-              <RolePage />
+              {withPageLoading(<RolePage />)}
             </ProtectedRoute>
         }
       ],
@@ -152,24 +164,24 @@ export default function App() {
 
 
     {
-      path: "/login",
-      element: <LoginPage />,
+      path: '/login',
+      element: withPageLoading(<LoginPage />),
     },
 
     {
-      path: "/register",
-      element: <RegisterPage />,
+      path: '/register',
+      element: withPageLoading(<RegisterPage />),
     },
     {
-      path: "/forgot-password",
-      element: <ForgotPassword />,
+      path: '/forgot-password',
+      element: withPageLoading(<ForgotPassword />),
     },
 
     {
-      path: "/reset-password",
-      element: <ResetPassword />,
+      path: '/reset-password',
+      element: withPageLoading(<ResetPassword />),
     },
-  ]);
+  ]), []);
 
   return (
     <>

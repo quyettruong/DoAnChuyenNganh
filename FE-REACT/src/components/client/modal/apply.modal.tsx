@@ -24,6 +24,12 @@ const ApplyModal = (props: IProps) => {
     const navigate = useNavigate();
 
     const handleOkButton = async () => {
+        if (jobDetail && !jobDetail.active) {
+            message.warning("Công việc này đã đủ số lượng tuyển.");
+            setIsModalOpen(false);
+            return;
+        }
+
         if (!urlCV && isAuthenticated) {
             message.error("Vui lòng upload CV!");
             return;

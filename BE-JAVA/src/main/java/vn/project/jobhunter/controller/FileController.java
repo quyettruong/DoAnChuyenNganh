@@ -18,7 +18,6 @@ import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
@@ -32,6 +31,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 @RestController
 @RequestMapping("/api/v1")
 public class FileController {
+    private static final List<String> ALLOWED_FOLDERS = Arrays.asList("resume", "company", "avatar");
 
     private final FileService fileService;
 
@@ -51,6 +51,10 @@ public class FileController {
 
         if (file == null || file.isEmpty()) {
             throw new StorageException("File is empty");
+        }
+
+        if (folder == null || !ALLOWED_FOLDERS.contains(folder)) {
+            throw new StorageException("Invalid upload folder");
         }
 
         String fileName = file.getOriginalFilename();
@@ -78,6 +82,10 @@ public class FileController {
             throws StorageException, URISyntaxException, FileNotFoundException {
         if (fileName == null || folder == null) {
             throw new StorageException("Missing required parameters");
+        }
+
+        if (!ALLOWED_FOLDERS.contains(folder)) {
+            throw new StorageException("Invalid download folder");
         }
 
         // Kiểm tra file tồn tại (và không phải thư mục)

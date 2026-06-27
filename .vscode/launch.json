@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-JobhunterApplication<jobhunter-BE-JAVA>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "vn.project.jobhunter.JobhunterApplication",
+            "projectName": "jobhunter-BE-JAVA",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-JobhunterApplication<BE-JAVA>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "vn.project.jobhunter.JobhunterApplication",
+            "projectName": "BE-JAVA",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

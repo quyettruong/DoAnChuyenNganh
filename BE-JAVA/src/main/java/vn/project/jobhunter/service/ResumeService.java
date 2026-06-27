@@ -1,5 +1,6 @@
 package vn.project.jobhunter.service;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -7,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.turkraft.springfilter.builder.FilterBuilder;
 import com.turkraft.springfilter.converter.FilterSpecification;
@@ -27,13 +29,18 @@ import vn.project.jobhunter.domain.response.resume.ResUpdateResumeDTO;
 import vn.project.jobhunter.repository.JobRepository;
 import vn.project.jobhunter.repository.ResumeRepository;
 import vn.project.jobhunter.repository.UserRepository;
+import vn.project.jobhunter.util.constant.ResumeStateEnum;
+import vn.project.jobhunter.util.error.IdInvalidException;
 import vn.project.jobhunter.util.error.SecurityUtil;
 
 @Service
 public class ResumeService {
+    private static final String FULL_STATUS_NOTE = "Công việc này đã đủ số lượng tuyển. Cảm ơn bạn đã ứng tuyển.";
+
     private final ResumeRepository resumeRepository;
     private final UserRepository userRepository;
     private final JobRepository jobRepository;
+    private final NotificationService notificationService;
     @Autowired
     FilterBuilder fb;
 
@@ -46,10 +53,12 @@ public class ResumeService {
     public ResumeService(
             ResumeRepository resumeRepository,
             UserRepository userRepository,
-            JobRepository jobRepository) {
+            JobRepository jobRepository,
+            NotificationService notificationService) {
         this.resumeRepository = resumeRepository;
         this.userRepository = userRepository;
         this.jobRepository = jobRepository;
+        this.notificationService = notificationService;
     }
 
     public Optional<Resume> fetchById(long id) {
@@ -87,6 +96,25 @@ public class ResumeService {
     }
 
     public ResCreateResumeDTO create(Resume resume) {
+        Job job = this.jobRepository.findById(resume.getJob().getId())
+                .orElseThrow(() -> new IdInvalidException("Job không tồn tại"));
+
+        if (!job.isActive()) {
+            throw new IdInvalidException("Công việc này đã đủ số lượng tuyển hoặc đã ngừng nhận hồ sơ");
+        }
+
+        long approvedCount = this.resumeRepository.countByJobIdAndStatus(job.getId(), ResumeStateEnum.APPROVED);
+        if (job.getQuantity() > 0 && approvedCount >= job.getQuantity()) {
+            job.setActive(false);
+            this.jobRepository.save(job);
+            throw new IdInvalidException("Công việc này đã đủ số lượng tuyển");
+        }
+
+        resume.setJob(job);
+        if (resume.getStatus() == null) {
+            resume.setStatus(ResumeStateEnum.PENDING);
+        }
+
         resume = this.resumeRepository.save(resume);
 
         ResCreateResumeDTO res = new ResCreateResumeDTO();
@@ -103,7 +131,56 @@ public class ResumeService {
         ResUpdateResumeDTO res = new ResUpdateResumeDTO();
         res.setUpdatedAt(resume.getUpdatedAt());
         res.setUpdatedBy(resume.getUpdatedBy());
+        res.setStatus(resume.getStatus() != null ? resume.getStatus().name() : null);
+        res.setStatusNote(resume.getStatusNote());
 
+        return res;
+    }
+
+    @Transactional
+    public ResUpdateResumeDTO updateStatus(Resume resume, ResumeStateEnum nextStatus) {
+        if (nextStatus == null) {
+            throw new IdInvalidException("Trạng thái CV không hợp lệ");
+        }
+
+        if (resume.getJob() == null) {
+            throw new IdInvalidException("Resume chưa gắn với job hợp lệ");
+        }
+
+        Job job = this.jobRepository.findById(resume.getJob().getId())
+                .orElseThrow(() -> new IdInvalidException("Job không tồn tại"));
+
+        if (ResumeStateEnum.APPROVED.equals(nextStatus)) {
+            long approvedCount = this.resumeRepository.countByJobIdAndStatusAndIdNot(
+                    job.getId(),
+                    ResumeStateEnum.APPROVED,
+                    resume.getId());
+
+            if (job.getQuantity() > 0 && approvedCount >= job.getQuantity()) {
+                throw new IdInvalidException("Công việc này đã đủ số lượng tuyển");
+            }
+        }
+
+        ResumeStateEnum previousStatus = resume.getStatus();
+        boolean statusChanged = !nextStatus.equals(previousStatus);
+
+        resume.setStatus(nextStatus);
+        resume.setStatusNote(buildStatusNote(nextStatus));
+        Resume savedResume = this.resumeRepository.save(resume);
+
+        if (statusChanged) {
+            this.notificationService.createResumeStatusNotification(savedResume, nextStatus);
+        }
+
+        if (ResumeStateEnum.APPROVED.equals(nextStatus)) {
+            closeJobIfRecruitmentIsFull(job, savedResume.getId());
+        }
+
+        ResUpdateResumeDTO res = new ResUpdateResumeDTO();
+        res.setUpdatedAt(savedResume.getUpdatedAt());
+        res.setUpdatedBy(savedResume.getUpdatedBy());
+        res.setStatus(savedResume.getStatus().name());
+        res.setStatusNote(savedResume.getStatusNote());
         return res;
     }
 
@@ -117,11 +194,20 @@ public class ResumeService {
         res.setEmail(resume.getEmail());
         res.setUrl(resume.getUrl());
         res.setStatus(resume.getStatus());
+        res.setStatusNote(resume.getStatusNote());
         res.setCreatedAt(resume.getCreatedAt());
         res.setCreatedBy(resume.getCreatedBy());
         res.setUpdatedAt(resume.getUpdatedAt());
         res.setUpdatedBy(resume.getUpdatedBy());
         res.setSummaryAi(resume.getSummaryAi());
+        res.setAiMatchScore(resume.getAiMatchScore());
+        res.setAiRecommendation(resume.getAiRecommendation());
+        res.setAiMatchedSkills(textToList(resume.getAiMatchedSkills()));
+        res.setAiMissingSkills(textToList(resume.getAiMissingSkills()));
+        res.setAiStrengths(textToList(resume.getAiStrengths()));
+        res.setAiWeaknesses(textToList(resume.getAiWeaknesses()));
+        res.setAiEvaluation(resume.getAiEvaluation());
+        res.setAiEvaluatedAt(resume.getAiEvaluatedAt());
         if (resume.getJob() != null) {
             res.setCompanyName(resume.getJob().getCompany().getName());
         }
@@ -195,6 +281,58 @@ public class ResumeService {
         rs.setMeta(mt);
         rs.setResult(page.getContent());
         return rs;
+    }
+
+    private void closeJobIfRecruitmentIsFull(Job job, long approvedResumeId) {
+        if (job.getQuantity() <= 0) {
+            return;
+        }
+
+        long approvedCount = this.resumeRepository.countByJobIdAndStatus(job.getId(), ResumeStateEnum.APPROVED);
+        if (approvedCount < job.getQuantity()) {
+            return;
+        }
+
+        job.setActive(false);
+        this.jobRepository.save(job);
+
+        List<Resume> remainingResumes = this.resumeRepository.findByJobIdAndStatusInAndIdNot(
+                job.getId(),
+                List.of(ResumeStateEnum.PENDING, ResumeStateEnum.REVIEWING),
+                approvedResumeId);
+
+        remainingResumes.forEach(item -> {
+            item.setStatus(ResumeStateEnum.FULL);
+            item.setStatusNote(FULL_STATUS_NOTE);
+            this.notificationService.createJobFullNotification(item);
+        });
+
+        this.resumeRepository.saveAll(remainingResumes);
+    }
+
+    private String buildStatusNote(ResumeStateEnum status) {
+        if (status == null) {
+            return null;
+        }
+
+        return switch (status) {
+            case PENDING -> "Hồ sơ của bạn đã được gửi và đang chờ nhà tuyển dụng xem xét.";
+            case REVIEWING -> "Hồ sơ của bạn đang được nhà tuyển dụng xem xét.";
+            case APPROVED -> "Hồ sơ của bạn đã được chấp thuận.";
+            case REJECTED -> "Hồ sơ của bạn chưa phù hợp với vị trí này.";
+            case FULL -> FULL_STATUS_NOTE;
+        };
+    }
+
+    private List<String> textToList(String value) {
+        if (value == null || value.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.stream(value.split("\\R"))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .collect(Collectors.toList());
     }
 
 }

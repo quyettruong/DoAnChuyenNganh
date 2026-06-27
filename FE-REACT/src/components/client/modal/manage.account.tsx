@@ -4,12 +4,13 @@ import {
     Form,
     Modal,
     Row,
-    Select,
     Table,
     Tabs,
+    Avatar,
+    Upload,
     message,
-    notification,
     Input,
+    Tag,
 } from "antd";
 import { isMobile } from "react-device-detect";
 import type { TabsProps } from "antd";
@@ -19,16 +20,36 @@ import {
     callFetchResumeByUser,
     callUpdateProfile,
     callChangePassword,
+    callUploadSingleFile,
 } from "@/config/api";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
-import { MonitorOutlined } from "@ant-design/icons";
-import { useAppSelector } from "@/redux/hooks";
+import { LoadingOutlined, UploadOutlined } from "@ant-design/icons";
+import { fetchAccount } from "@/redux/slice/accountSlide";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import styles from "@/styles/client.module.scss";
 
 interface IProps {
     open: boolean;
     onClose: (v: boolean) => void;
+    defaultActiveKey?: string;
 }
+
+const resumeStatusColor: Record<string, string> = {
+    PENDING: "default",
+    REVIEWING: "processing",
+    APPROVED: "success",
+    REJECTED: "error",
+    FULL: "warning",
+};
+
+const resumeStatusText: Record<string, string> = {
+    PENDING: "Đang chờ duyệt",
+    REVIEWING: "Đang xem xét",
+    APPROVED: "Được chấp thuận",
+    REJECTED: "Chưa phù hợp",
+    FULL: "Đã đủ số lượng",
+};
 
 /**
  * TAB 1: Danh sách CV đã rải
@@ -70,6 +91,20 @@ const UserResume = (props: any) => {
         {
             title: "Trạng thái",
             dataIndex: "status",
+            render(value, record) {
+                return (
+                    <div>
+                        <Tag color={resumeStatusColor[record.status] || "default"}>
+                            {resumeStatusText[record.status] || record.status}
+                        </Tag>
+                        {record.statusNote && (
+                            <div style={{ marginTop: 6, color: "#667085", lineHeight: 1.45 }}>
+                                {record.statusNote}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             title: "Ngày rải CV",
@@ -112,17 +147,52 @@ const UserResume = (props: any) => {
  */
 const UserUpdateInfo = (props: any) => {
     const [form] = Form.useForm();
+    const dispatch = useAppDispatch();
     const user = useAppSelector((state) => state.account.user);
     const [loading, setLoading] = useState(false);
+    const [loadingUpload, setLoadingUpload] = useState(false);
+    const avatar = Form.useWatch("avatar", form);
 
     useEffect(() => {
         if (user) {
             form.setFieldsValue({
                 name: user.name,
-                email: user.email
+                email: user.email,
+                avatar: user.avatar,
             });
         }
-    }, [user]);
+    }, [user, form]);
+
+    const beforeUploadAvatar = (file: any) => {
+        const isImage = file.type === "image/jpeg" || file.type === "image/png";
+        if (!isImage) {
+            message.error("Chỉ hỗ trợ ảnh JPG/PNG");
+        }
+
+        const isLt2M = file.size / 1024 / 1024 < 2;
+        if (!isLt2M) {
+            message.error("Ảnh cần nhỏ hơn 2MB");
+        }
+
+        return isImage && isLt2M;
+    };
+
+    const handleUploadAvatar = async ({ file, onSuccess, onError }: any) => {
+        setLoadingUpload(true);
+        const res = await callUploadSingleFile(file, "avatar");
+        setLoadingUpload(false);
+
+        if (res?.data?.fileName) {
+            form.setFieldValue("avatar", res.data.fileName);
+            message.success("Tải ảnh đại diện thành công");
+            onSuccess?.("ok");
+            return;
+        }
+
+        const error = new Error(res?.message || "Upload ảnh thất bại");
+        onError?.({ event: error });
+        message.error(error.message);
+    };
 
 
     const onFinish = async (values: any) => {
@@ -131,9 +201,11 @@ const UserUpdateInfo = (props: any) => {
             const res = await callUpdateProfile(
                 values.name,
                 values.address,
-                values.age
+                values.age,
+                values.avatar
             );
             if (res?.statusCode === 200) {
+                dispatch(fetchAccount());
                 message.success("Cập nhật thông tin thành công");
             } else {
                 message.error(res?.message || "Có lỗi xảy ra");
@@ -147,6 +219,37 @@ const UserUpdateInfo = (props: any) => {
 
     return (
         <Form layout="vertical" form={form} onFinish={onFinish}>
+            <div className={styles["account-avatar-editor"]}>
+                <Avatar
+                    size={84}
+                    src={avatar ? `${import.meta.env.VITE_BACKEND_URL}/storage/avatar/${avatar}` : undefined}
+                >
+                    {user?.name?.substring(0, 2)?.toUpperCase()}
+                </Avatar>
+                <div>
+                    <strong>Ảnh đại diện</strong>
+                    <span>Ảnh này sẽ hiển thị trên thanh tài khoản.</span>
+                    <div>
+                        <Upload
+                            showUploadList={false}
+                            customRequest={handleUploadAvatar}
+                            beforeUpload={beforeUploadAvatar}
+                        >
+                            <Button icon={loadingUpload ? <LoadingOutlined /> : <UploadOutlined />}>
+                                Tải ảnh lên
+                            </Button>
+                        </Upload>
+                        {avatar && (
+                            <Button style={{ marginLeft: 8 }} onClick={() => form.setFieldValue("avatar", "")}>
+                                Bỏ ảnh
+                            </Button>
+                        )}
+                    </div>
+                </div>
+                <Form.Item name="avatar" hidden>
+                    <Input />
+                </Form.Item>
+            </div>
             <Row gutter={[20, 20]}>
                 <Col xs={24} md={12}>
                     <Form.Item
@@ -283,11 +386,18 @@ const UserChangePassword = (props: any) => {
  * Modal chính
  */
 const ManageAccount = (props: IProps) => {
-    const { open, onClose } = props;
+    const { open, onClose, defaultActiveKey = "user-resume" } = props;
+    const [activeKey, setActiveKey] = useState(defaultActiveKey);
 
     const onChange = (key: string) => {
-        // có thể log tab nếu cần
+        setActiveKey(key);
     };
+
+    useEffect(() => {
+        if (open) {
+            setActiveKey(defaultActiveKey);
+        }
+    }, [defaultActiveKey, open]);
 
     const items: TabsProps["items"] = [
         {
@@ -319,7 +429,7 @@ const ManageAccount = (props: IProps) => {
                 width={isMobile ? "100%" : "1000px"}
             >
                 <div style={{ minHeight: 400 }}>
-                    <Tabs defaultActiveKey="user-resume" items={items} onChange={onChange} />
+                    <Tabs activeKey={activeKey} items={items} onChange={onChange} />
                 </div>
             </Modal>
         </>

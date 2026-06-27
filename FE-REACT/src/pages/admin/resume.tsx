@@ -2,10 +2,10 @@ import DataTable from "@/components/client/data-table";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { IResume } from "@/types/backend";
 import { ActionType, ProColumns, ProFormSelect } from "@ant-design/pro-components";
-import { Space, message, notification, Popconfirm, Tooltip } from "antd";
+import { Space, message, notification, Popconfirm, Tooltip, Tag } from "antd";
 import { useState, useRef } from "react";
 import dayjs from "dayjs";
-import { callDeleteResume, callSummarizeResume } from "@/config/api";
+import { callDeleteResume, callEvaluateResume, callSummarizeResume } from "@/config/api";
 import queryString from "query-string";
 import { fetchResume } from "@/redux/slice/resumeSlide";
 import ViewDetailResume from "@/components/admin/resume/view.resume";
@@ -16,8 +16,24 @@ import {
     EditOutlined,
     DeleteOutlined,
     DownloadOutlined,
+    FileSearchOutlined,
     RobotOutlined,
 } from "@ant-design/icons";
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+    if (error && typeof error === "object") {
+        const apiError = error as {
+            message?: string | string[];
+            response?: { data?: { message?: string | string[] } };
+        };
+        const message = apiError.response?.data?.message ?? apiError.message;
+
+        if (Array.isArray(message)) return message.join(", ");
+        if (typeof message === "string" && message.trim()) return message;
+    }
+
+    return fallback;
+};
 
 const ResumePage = () => {
     const tableRef = useRef<ActionType>();
@@ -59,8 +75,36 @@ const ResumePage = () => {
         window.open(downloadUrl, "_blank");
     };
 
+    const handleEvaluateResume = (record: IResume) => {
+        if (!record.id) {
+            message.error("Resume không hợp lệ");
+            return;
+        }
+
+        callEvaluateResume(record.id)
+            .then((res) => {
+                if (res?.statusCode === 200) {
+                    message.success("AI đã đánh giá CV thành công");
+                    reloadTable();
+                } else {
+                    message.error(res?.message || "Không thể đánh giá CV bằng AI");
+                }
+            })
+            .catch((error) =>
+                message.error(getApiErrorMessage(error, "Lỗi khi đánh giá CV bằng AI")),
+            );
+    };
+
     const reloadTable = () => {
         tableRef?.current?.reload();
+    };
+
+    const statusColor: Record<string, string> = {
+        PENDING: "default",
+        REVIEWING: "processing",
+        APPROVED: "success",
+        REJECTED: "error",
+        FULL: "warning",
     };
 
     const columns: ProColumns<IResume>[] = [
@@ -96,15 +140,48 @@ const ResumePage = () => {
                         REVIEWING: "REVIEWING",
                         APPROVED: "APPROVED",
                         REJECTED: "REJECTED",
+                        FULL: "FULL",
                     }}
                     placeholder="Chọn level"
                 />
+            ),
+            render: (_dom, record) => (
+                <Tooltip title={record.statusNote}>
+                    <Tag color={statusColor[record.status] || "default"}>
+                        {record.status}
+                    </Tag>
+                </Tooltip>
             ),
         },
         {
             title: "Job",
             dataIndex: ["job", "name"],
             hideInSearch: true,
+        },
+        {
+            title: "AI Score",
+            dataIndex: "aiMatchScore",
+            width: 120,
+            sorter: true,
+            hideInSearch: true,
+            render: (_dom, record) => {
+                if (typeof record.aiMatchScore !== "number") {
+                    return <Tag>Chưa đánh giá</Tag>;
+                }
+
+                const color =
+                    record.aiMatchScore >= 80
+                        ? "success"
+                        : record.aiMatchScore >= 55
+                            ? "processing"
+                            : "error";
+
+                return (
+                    <Tooltip title={record.aiEvaluation || record.aiRecommendation}>
+                        <Tag color={color}>{record.aiMatchScore}/100</Tag>
+                    </Tooltip>
+                );
+            },
         },
         {
             title: "Company",
@@ -136,7 +213,7 @@ const ResumePage = () => {
         {
             title: "Actions",
             hideInSearch: true,
-            width: 220,
+            width: 260,
             render: (_value, entity) => (
                 <Space>
                     {/* Download: luôn cho phép */}
@@ -180,19 +257,31 @@ const ResumePage = () => {
 
                                     callSummarizeResume(entity.id)
                                         .then((res) => {
-                                            const data = res.data; // AxiosResponse -> data
-
-                                            if (data?.statusCode === 200) {
+                                            if (res?.statusCode === 200) {
                                                 message.success("Tóm tắt CV thành công");
                                                 reloadTable();
                                             } else {
                                                 message.error(
-                                                    data?.message || "Không thể tóm tắt CV",
+                                                    res?.message || "Không thể tóm tắt CV",
                                                 );
                                             }
                                         })
-                                        .catch(() => message.error("Lỗi khi tóm tắt CV"));
+                                        .catch((error) =>
+                                            message.error(
+                                                getApiErrorMessage(error, "Lỗi khi tóm tắt CV"),
+                                            ),
+                                        );
                                 }}
+                            />
+                        </Tooltip>
+                    </Access>
+
+                    {/* Đánh giá CV so với job bằng AI */}
+                    <Access permission={ALL_PERMISSIONS.RESUMES.AI_EVALUATE} hideChildren={true}>
+                        <Tooltip title="AI đánh giá độ phù hợp">
+                            <FileSearchOutlined
+                                style={{ fontSize: 20, color: "#13c2c2", cursor: "pointer" }}
+                                onClick={() => handleEvaluateResume(entity)}
                             />
                         </Tooltip>
                     </Access>
@@ -257,6 +346,12 @@ const ResumePage = () => {
                 sort.updatedAt === "ascend"
                     ? "sort=updatedAt,asc"
                     : "sort=updatedAt,desc";
+        }
+        if (sort && sort.aiMatchScore) {
+            sortBy =
+                sort.aiMatchScore === "ascend"
+                    ? "sort=aiMatchScore,asc"
+                    : "sort=aiMatchScore,desc";
         }
 
         if (!sortBy) {

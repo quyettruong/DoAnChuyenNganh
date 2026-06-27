@@ -67,6 +67,8 @@ public class AuthService {
             user.setAddress(request.getAddress());
         if (request.getAge() != null)
             user.setAge(request.getAge());
+        if (request.getAvatar() != null)
+            user.setAvatar(request.getAvatar());
 
         return userRepository.save(user);
     }

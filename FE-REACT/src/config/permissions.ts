@@ -11,6 +11,12 @@ export const ALL_PERMISSIONS = {
         UPDATE: { method: "PUT", apiPath: '/api/v1/jobs', module: "JOBS" },
         DELETE: { method: "DELETE", apiPath: '/api/v1/jobs/{id}', module: "JOBS" },
     },
+    SKILLS: {
+        GET_PAGINATE: { method: "GET", apiPath: '/api/v1/skills', module: "SKILLS" },
+        CREATE: { method: "POST", apiPath: '/api/v1/skills', module: "SKILLS" },
+        UPDATE: { method: "PUT", apiPath: '/api/v1/skills', module: "SKILLS" },
+        DELETE: { method: "DELETE", apiPath: '/api/v1/skills/{id}', module: "SKILLS" },
+    },
     PERMISSIONS: {
         GET_PAGINATE: { method: "GET", apiPath: '/api/v1/permissions', module: "PERMISSIONS" },
         CREATE: { method: "POST", apiPath: '/api/v1/permissions', module: "PERMISSIONS" },
@@ -25,6 +31,11 @@ export const ALL_PERMISSIONS = {
         AI_SUMMARY: {
             method: "POST",
             apiPath: "/api/v1/resumes/{id}/ai-summary",
+            module: "RESUMES",
+        },
+        AI_EVALUATE: {
+            method: "POST",
+            apiPath: "/api/v1/resumes/{id}/ai-evaluate",
             module: "RESUMES",
         },
     },
@@ -46,6 +57,7 @@ export const ALL_MODULES = {
     COMPANIES: 'COMPANIES',
     FILES: 'FILES',
     JOBS: 'JOBS',
+    SKILLS: 'SKILLS',
     PERMISSIONS: 'PERMISSIONS',
     RESUMES: 'RESUMES',
     ROLES: 'ROLES',

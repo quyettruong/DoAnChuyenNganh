@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import vn.project.jobhunter.domain.Permission;
 import vn.project.jobhunter.domain.Role;
@@ -34,6 +35,7 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
         System.out.println(">>> START INIT DATABASE");
 
@@ -57,6 +59,12 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Delete a job", "/api/v1/jobs/{id}", "DELETE", "JOBS"));
             arr.add(new Permission("Get a job by id", "/api/v1/jobs/{id}", "GET", "JOBS"));
             arr.add(new Permission("Get jobs with pagination", "/api/v1/jobs", "GET", "JOBS"));
+
+            // SKILLS
+            arr.add(new Permission("Create a skill", "/api/v1/skills", "POST", "SKILLS"));
+            arr.add(new Permission("Update a skill", "/api/v1/skills", "PUT", "SKILLS"));
+            arr.add(new Permission("Delete a skill", "/api/v1/skills/{id}", "DELETE", "SKILLS"));
+            arr.add(new Permission("Get skills with pagination", "/api/v1/skills", "GET", "SKILLS"));
 
             // PERMISSIONS
             arr.add(new Permission("Create a permission", "/api/v1/permissions", "POST", "PERMISSIONS"));
@@ -85,6 +93,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             arr.add(new Permission("Delete a resume", "/api/v1/resumes/{id}", "DELETE", "RESUMES"));
             arr.add(new Permission("Get a resume by id", "/api/v1/resumes/{id}", "GET", "RESUMES"));
             arr.add(new Permission("Get resumes with pagination", "/api/v1/resumes", "GET", "RESUMES"));
+            arr.add(new Permission("Generate AI resume summary", "/api/v1/resumes/{id}/ai-summary", "POST", "RESUMES"));
+            arr.add(new Permission("Evaluate resume by AI", "/api/v1/resumes/{id}/ai-evaluate", "POST", "RESUMES"));
 
             // SUBSCRIBERS
             arr.add(new Permission("Create a subscriber", "/api/v1/subscribers", "POST", "SUBSCRIBERS"));
@@ -101,6 +111,23 @@ public class DatabaseInitializer implements CommandLineRunner {
             this.permissionRepository.saveAll(arr);
 
         }
+        Permission aiSummaryPermission = ensurePermission(
+                "Generate AI resume summary",
+                "/api/v1/resumes/{id}/ai-summary",
+                "POST",
+                "RESUMES");
+        Permission aiEvaluatePermission = ensurePermission(
+                "Evaluate resume by AI",
+                "/api/v1/resumes/{id}/ai-evaluate",
+                "POST",
+                "RESUMES");
+        Permission createSkillPermission = ensurePermission("Create a skill", "/api/v1/skills", "POST", "SKILLS");
+        Permission updateSkillPermission = ensurePermission("Update a skill", "/api/v1/skills", "PUT", "SKILLS");
+        Permission deleteSkillPermission = ensurePermission("Delete a skill", "/api/v1/skills/{id}", "DELETE",
+                "SKILLS");
+        Permission getSkillPermission = ensurePermission("Get skills with pagination", "/api/v1/skills", "GET",
+                "SKILLS");
+
         if (countRoles == 0) {
             List<Permission> allPermissions = this.permissionRepository.findAll();
 
@@ -113,8 +140,17 @@ public class DatabaseInitializer implements CommandLineRunner {
             this.roleRepository.save(adminRole);
         }
 
+        grantPermissionToRole("SUPER_ADMIN", aiSummaryPermission);
+        grantPermissionToRole("SUPER_ADMIN", aiEvaluatePermission);
+        grantPermissionToRole("SUPER_ADMIN", createSkillPermission);
+        grantPermissionToRole("SUPER_ADMIN", updateSkillPermission);
+        grantPermissionToRole("SUPER_ADMIN", deleteSkillPermission);
+        grantPermissionToRole("SUPER_ADMIN", getSkillPermission);
+        grantPermissionToRole("HR", aiSummaryPermission);
+        grantPermissionToRole("HR", aiEvaluatePermission);
+
         // Khởi tạo User admin nếu chưa có
-        if (countUsers == 0) {
+        if (!this.userRepository.findByEmail("admin@gmail.com").isPresent()) {
             User adminUser = new User();
             adminUser.setEmail("admin@gmail.com");
             adminUser.setAddress("tphcm");
@@ -135,6 +171,30 @@ public class DatabaseInitializer implements CommandLineRunner {
             System.out.println(">>> SKIP INIT DATABASE ~ ALREADY HAVE DATA...");
         } else {
             System.out.println(">>> END INIT DATABASE");
+        }
+    }
+
+    private Permission ensurePermission(String name, String apiPath, String method, String module) {
+        return this.permissionRepository.findByModuleAndApiPathAndMethod(module, apiPath, method)
+                .orElseGet(() -> this.permissionRepository.save(new Permission(name, apiPath, method, module)));
+    }
+
+    private void grantPermissionToRole(String roleName, Permission permission) {
+        Role role = this.roleRepository.findByName(roleName);
+        if (role == null || permission == null) {
+            return;
+        }
+
+        List<Permission> permissions = role.getPermissions();
+        if (permissions == null) {
+            permissions = new ArrayList<>();
+            role.setPermissions(permissions);
+        }
+
+        boolean existed = permissions.stream().anyMatch(item -> item.getId() == permission.getId());
+        if (!existed) {
+            permissions.add(permission);
+            this.roleRepository.save(role);
         }
     }
 

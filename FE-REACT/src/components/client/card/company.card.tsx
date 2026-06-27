@@ -71,9 +71,12 @@ const CompanyCard = (props: IProps) => {
                     <Row gutter={[20, 20]}>
                         <Col span={24}>
                             <div className={isMobile ? styles["dflex-mobile"] : styles["dflex-pc"]}>
-                                <span className={styles["title"]}>Nhà Tuyển Dụng Hàng Đầu</span>
+                                <div>
+                                    <span className={styles["title"]}>Nhà Tuyển Dụng Hàng Đầu</span>
+                                    <p className={styles["section-subtitle"]}>Những công ty IT đang có cơ hội phù hợp cho bạn.</p>
+                                </div>
                                 {!showPagination &&
-                                    <Link to="company">Xem tất cả</Link>
+                                    <Link className={styles["section-link"]} to="company">Xem tất cả</Link>
                                 }
                             </div>
                         </Col>
@@ -82,8 +85,8 @@ const CompanyCard = (props: IProps) => {
                             return (
                                 <Col span={24} md={6} key={item.id}>
                                     <Card
+                                        className={styles["company-card"]}
                                         onClick={() => handleViewDetailJob(item)}
-                                        style={{ height: 350 }}
                                         hoverable
                                         cover={
                                             <div className={styles["card-customize"]} >
@@ -96,7 +99,7 @@ const CompanyCard = (props: IProps) => {
                                         }
                                     >
                                         <Divider />
-                                        <h3 style={{ textAlign: "center" }}>{item.name}</h3>
+                                        <h3>{item.name}</h3>
                                     </Card>
                                 </Col>
                             )

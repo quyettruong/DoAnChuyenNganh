@@ -5,8 +5,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -37,8 +40,10 @@ import jakarta.validation.Valid;
 import vn.project.jobhunter.domain.Company;
 import vn.project.jobhunter.domain.Job;
 import vn.project.jobhunter.domain.Resume;
+import vn.project.jobhunter.domain.Skill;
 import vn.project.jobhunter.domain.User;
 import vn.project.jobhunter.domain.response.ResultPaginationDTO;
+import vn.project.jobhunter.domain.response.resume.ResAiEvaluationDTO;
 import vn.project.jobhunter.domain.response.resume.ResAiSummaryDTO;
 import vn.project.jobhunter.domain.response.resume.ResCreateResumeDTO;
 import vn.project.jobhunter.domain.response.resume.ResFetchResumeDTO;
@@ -47,12 +52,16 @@ import vn.project.jobhunter.service.AiSummaryService;
 import vn.project.jobhunter.service.ResumeService;
 import vn.project.jobhunter.service.UserService;
 import vn.project.jobhunter.util.annotation.ApiMessage;
+import vn.project.jobhunter.util.constant.ResumeStateEnum;
 import vn.project.jobhunter.util.error.IdInvalidException;
+import vn.project.jobhunter.util.error.PermissionException;
 import vn.project.jobhunter.util.error.SecurityUtil;
 
 @RestController
 @RequestMapping("/api/v1")
 public class ResumeController {
+    private static final int MIN_EXTRACTED_CV_TEXT_LENGTH = 80;
+
     private final ResumeService resumeService;
     private final UserService userService;
     private final FilterBuilder filterBuilder;
@@ -88,7 +97,8 @@ public class ResumeController {
 
     @PutMapping("/resumes")
     @ApiMessage("update resume")
-    public ResponseEntity<ResUpdateResumeDTO> update(@RequestBody Resume resume) throws IdInvalidException {
+    public ResponseEntity<ResUpdateResumeDTO> update(@RequestBody Resume resume)
+            throws IdInvalidException, PermissionException {
         // Kiểm tra resume có tồn tại không
         Optional<Resume> reqResumeOptional = this.resumeService.fetchById(resume.getId());
         if (reqResumeOptional.isEmpty()) {
@@ -97,18 +107,21 @@ public class ResumeController {
 
         // Cập nhật trạng thái
         Resume reqResume = reqResumeOptional.get();
-        reqResume.setStatus(resume.getStatus());
+        ensureCanManageResume(reqResume);
 
-        return ResponseEntity.ok().body(this.resumeService.update(reqResume));
+        ResumeStateEnum nextStatus = resume.getStatus();
+        return ResponseEntity.ok().body(this.resumeService.updateStatus(reqResume, nextStatus));
     }
 
     @DeleteMapping("/resumes/{id}")
     @ApiMessage("Delete a resume by id")
-    public ResponseEntity<Void> delete(@PathVariable("id") long id) throws IdInvalidException {
+    public ResponseEntity<Void> delete(@PathVariable("id") long id) throws IdInvalidException, PermissionException {
         Optional<Resume> reqResumeOptional = this.resumeService.fetchById(id);
         if (reqResumeOptional.isEmpty()) {
             throw new IdInvalidException("Resume với id = " + id + " không tồn tại");
         }
+
+        ensureCanManageResume(reqResumeOptional.get());
 
         this.resumeService.delete(id);
         return ResponseEntity.ok().body(null);
@@ -116,13 +129,17 @@ public class ResumeController {
 
     @GetMapping("/resumes/{id}")
     @ApiMessage("Lấy resume by id")
-    public ResponseEntity<ResFetchResumeDTO> fetchById(@PathVariable Long id) throws IdInvalidException {
+    public ResponseEntity<ResFetchResumeDTO> fetchById(@PathVariable("id") Long id)
+            throws IdInvalidException, PermissionException {
         Optional<Resume> resResumeOptional = this.resumeService.fetchById(id);
         if (resResumeOptional.isEmpty()) {
             throw new IdInvalidException("Resume với id = " + id + " không tồn tại");
         }
 
-        return ResponseEntity.ok().body(this.resumeService.getResume(resResumeOptional.get()));
+        Resume resume = resResumeOptional.get();
+        ensureCanViewResume(resume);
+
+        return ResponseEntity.ok().body(this.resumeService.getResume(resume));
     }
 
     @GetMapping("/resumes")
@@ -195,6 +212,74 @@ public class ResumeController {
         return rs;
     }
 
+    private void ensureCanManageResume(Resume resume) throws PermissionException {
+        String email = SecurityUtil.getCurrentUserLogin().orElse(null);
+        if (email == null || email.isBlank()) {
+            throw new PermissionException("Bạn cần đăng nhập để cập nhật trạng thái CV");
+        }
+
+        User currentUser = this.userService.handleGetUserByUsername(email);
+        if (currentUser == null || currentUser.getRole() == null) {
+            throw new PermissionException("Bạn không có quyền cập nhật trạng thái CV");
+        }
+
+        String roleName = currentUser.getRole().getName();
+        if ("ADMIN".equalsIgnoreCase(roleName) || "SUPER_ADMIN".equalsIgnoreCase(roleName)) {
+            return;
+        }
+
+        if ("HR".equalsIgnoreCase(roleName)) {
+            Company company = currentUser.getCompany();
+            if (company == null
+                    || resume.getJob() == null
+                    || resume.getJob().getCompany() == null
+                    || !Objects.equals(resume.getJob().getCompany().getId(), company.getId())) {
+                throw new PermissionException("HR chỉ được cập nhật CV nộp vào công ty của mình");
+            }
+            return;
+        }
+
+        throw new PermissionException("Bạn không có quyền cập nhật trạng thái CV");
+    }
+
+    private void ensureCanViewResume(Resume resume) throws PermissionException {
+        String email = SecurityUtil.getCurrentUserLogin().orElse(null);
+        if (email == null || email.isBlank()) {
+            throw new PermissionException("Bạn cần đăng nhập để xem CV");
+        }
+
+        User currentUser = this.userService.handleGetUserByUsername(email);
+        if (currentUser == null || currentUser.getRole() == null) {
+            throw new PermissionException("Bạn không có quyền xem CV");
+        }
+
+        String roleName = currentUser.getRole().getName();
+        if ("ADMIN".equalsIgnoreCase(roleName) || "SUPER_ADMIN".equalsIgnoreCase(roleName)) {
+            return;
+        }
+
+        if ("HR".equalsIgnoreCase(roleName)) {
+            Company company = currentUser.getCompany();
+            if (company != null
+                    && resume.getJob() != null
+                    && resume.getJob().getCompany() != null
+                    && Objects.equals(resume.getJob().getCompany().getId(), company.getId())) {
+                return;
+            }
+            throw new PermissionException("HR chỉ được xem CV nộp vào công ty của mình");
+        }
+
+        if (resume.getUser() != null && Objects.equals(resume.getUser().getId(), currentUser.getId())) {
+            return;
+        }
+
+        if (resume.getEmail() != null && resume.getEmail().equalsIgnoreCase(currentUser.getEmail())) {
+            return;
+        }
+
+        throw new PermissionException("Bạn chỉ được xem CV của tài khoản mình");
+    }
+
     @GetMapping("/resumes/by-user")
     @ApiMessage("Post list resumes by user")
     public ResponseEntity<ResultPaginationDTO> fetchResumeByUser(Pageable pageable) {
@@ -251,27 +336,41 @@ public class ResumeController {
                 return Files.readString(filePath);
             }
 
-            // Các loại khác tạm thời fallback
-            return "Email: " + resume.getEmail()
-                    + ". Company: " + (resume.getJob() != null && resume.getJob().getCompany() != null
-                            ? resume.getJob().getCompany().getName()
-                            : "");
+            // Các loại khác chưa hỗ trợ AI đọc nội dung
+            return "";
 
         } catch (IOException e) {
             e.printStackTrace();
-            return "Error reading CV file. Email: " + resume.getEmail();
+            return "";
         }
     }
 
+    private String normalizeCvText(String text) {
+        return text == null ? "" : text.replaceAll("\\s+", " ").trim();
+    }
+
+    private String extractReadableTextFromResume(Resume resume) throws IdInvalidException {
+        String cvText = normalizeCvText(extractTextFromResume(resume));
+
+        if (cvText.length() < MIN_EXTRACTED_CV_TEXT_LENGTH) {
+            throw new IdInvalidException(
+                    "AI không đọc được nội dung CV. File PDF có thể là file ảnh hoặc không có text có thể copy. Vui lòng upload PDF/DOCX có chữ selectable rồi thử lại.");
+        }
+
+        return cvText;
+    }
+
     @PostMapping("/resumes/{id}/ai-summary")
-    public ResponseEntity<ResAiSummaryDTO> generateAiSummary(@PathVariable Long id) {
+    public ResponseEntity<ResAiSummaryDTO> generateAiSummary(@PathVariable("id") Long id)
+            throws PermissionException, IdInvalidException {
 
         // 1. Lấy resume từ DB
         Resume resume = resumeService.findById(id)
                 .orElseThrow(() -> new RuntimeException("Resume not found with id = " + id));
+        ensureCanManageResume(resume);
 
         // 2. Lấy text từ file CV (docx) hoặc fallback
-        String cvText = extractTextFromResume(resume);
+        String cvText = extractReadableTextFromResume(resume);
         System.out.println("===== RAW CV TEXT (first 200 chars) =====");
         System.out.println(cvText.substring(0, Math.min(200, cvText.length())));
 
@@ -280,6 +379,10 @@ public class ResumeController {
         System.out.println("===== AI SUMMARY (first 200 chars) =====");
         System.out.println(summary != null ? summary.substring(0, Math.min(200, summary.length())) : "null");
 
+        if (summary == null || summary.isBlank()) {
+            throw new IdInvalidException("AI chưa tạo được tóm tắt CV từ nội dung file này");
+        }
+
         // 4. Lưu summary vào DB
         resume.setSummaryAi(summary);
         resumeService.save(resume);
@@ -287,6 +390,87 @@ public class ResumeController {
         // 5. Trả về cho FE
         ResAiSummaryDTO resDto = new ResAiSummaryDTO(resume.getId(), summary);
         return ResponseEntity.ok(resDto);
+    }
+
+    @PostMapping("/resumes/{id}/ai-evaluate")
+    public ResponseEntity<ResAiEvaluationDTO> generateAiEvaluation(@PathVariable("id") Long id)
+            throws PermissionException, IdInvalidException {
+        Resume resume = resumeService.findById(id)
+                .orElseThrow(() -> new IdInvalidException("Resume với id = " + id + " không tồn tại"));
+        ensureCanManageResume(resume);
+
+        String cvText = extractReadableTextFromResume(resume);
+
+        Job job = resume.getJob();
+        List<String> skills = job != null && job.getSkills() != null
+                ? job.getSkills().stream()
+                        .map(Skill::getName)
+                        .filter(name -> name != null && !name.isBlank())
+                        .collect(Collectors.toList())
+                : Collections.emptyList();
+
+        AiSummaryService.ResumeEvaluationRequest request = new AiSummaryService.ResumeEvaluationRequest(
+                cvText,
+                job != null ? job.getName() : "",
+                job != null && job.getCompany() != null ? job.getCompany().getName() : "",
+                job != null ? job.getDescription() : "",
+                job != null && job.getLevel() != null ? job.getLevel().name() : "",
+                job != null ? job.getLocation() : "",
+                job != null ? job.getSalary() : null,
+                job != null ? job.getQuantity() : null,
+                skills);
+
+        AiSummaryService.ResumeEvaluationData evaluation = aiSummaryService.evaluateResume(request);
+        if (evaluation == null || evaluation.getAiMatchScore() == null) {
+            throw new IdInvalidException("AI chưa trả về kết quả đánh giá CV");
+        }
+
+        resume.setAiMatchScore(evaluation.getAiMatchScore());
+        resume.setAiRecommendation(evaluation.getAiRecommendation());
+        resume.setAiMatchedSkills(joinLines(evaluation.getAiMatchedSkills()));
+        resume.setAiMissingSkills(joinLines(evaluation.getAiMissingSkills()));
+        resume.setAiStrengths(joinLines(evaluation.getAiStrengths()));
+        resume.setAiWeaknesses(joinLines(evaluation.getAiWeaknesses()));
+        resume.setAiEvaluation(evaluation.getAiEvaluation());
+        resume.setAiEvaluatedAt(Instant.now());
+        resumeService.save(resume);
+
+        return ResponseEntity.ok(buildAiEvaluationDTO(resume));
+    }
+
+    private ResAiEvaluationDTO buildAiEvaluationDTO(Resume resume) {
+        return new ResAiEvaluationDTO(
+                resume.getId(),
+                resume.getAiMatchScore(),
+                resume.getAiRecommendation(),
+                splitLines(resume.getAiMatchedSkills()),
+                splitLines(resume.getAiMissingSkills()),
+                splitLines(resume.getAiStrengths()),
+                splitLines(resume.getAiWeaknesses()),
+                resume.getAiEvaluation(),
+                resume.getAiEvaluatedAt());
+    }
+
+    private String joinLines(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+
+        return values.stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .collect(Collectors.joining("\n"));
+    }
+
+    private List<String> splitLines(String value) {
+        if (value == null || value.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.stream(value.split("\\R"))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .collect(Collectors.toList());
     }
 
 }

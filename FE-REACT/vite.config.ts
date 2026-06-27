@@ -31,5 +31,30 @@ export default defineConfig(({ command, mode }) => {
         pages: `${path.resolve(__dirname, "./src/pages/")}`,
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return;
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor';
+            }
+            if (id.includes('@ant-design/pro')) {
+              return 'ant-pro';
+            }
+            if (id.includes('antd') || id.includes('@ant-design/icons')) {
+              return 'antd-vendor';
+            }
+            if (id.includes('leaflet') || id.includes('react-leaflet')) {
+              return 'map-vendor';
+            }
+            if (id.includes('quill') || id.includes('react-quill')) {
+              return 'editor-vendor';
+            }
+            return 'vendor';
+          },
+        },
+      },
+    },
   }
 })

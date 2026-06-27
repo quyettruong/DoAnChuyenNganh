@@ -19,12 +19,16 @@ const JobTabs = () => {
         {
             key: '2',
             label: 'Manage Skills',
-            children: <SkillPage />,
+            children: (
+                <Access permission={ALL_PERMISSIONS.SKILLS.GET_PAGINATE}>
+                    <SkillPage />
+                </Access>
+            ),
         },
 
     ];
     return (
-        <div>
+        <div className="admin-tabs-card">
             <Access
                 permission={ALL_PERMISSIONS.JOBS.GET_PAGINATE}
             >

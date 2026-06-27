@@ -1,15 +1,528 @@
+:root {
+    color: #172033;
+    background: #f5f7fb;
+    font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+@keyframes adminSurfaceIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.995);
+        filter: blur(2px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes adminRowIn {
+    from {
+        opacity: 0;
+        transform: translateX(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+        linear-gradient(180deg, #f8fbff 0%, #f5f7fb 36%, #f7faf9 100%);
+}
+
+a {
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+        color: #0f766e;
+    }
+}
+
+.layout-app {
+    min-height: 100vh;
+    background:
+        linear-gradient(180deg, #f8fbff 0%, #f5f7fb 40%, #f7faf9 100%);
+}
+
 .ant-pro-footer-bar {
     z-index: 1000;
+    border-top: 1px solid #e6edf5;
     background-color: white;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .ant-menu-horizontal {
     border-bottom: unset !important;
 }
 
+.ant-layout {
+    background: transparent;
+}
+
+.ant-card {
+    border: 1px solid #e6edf5;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease;
+}
+
+.ant-card-hoverable {
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+
+    &:hover {
+        border-color: #bfdbfe;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.1);
+        transform: translateY(-2px);
+    }
+}
+
+.ant-btn {
+    border-radius: 8px;
+    font-weight: 700;
+    transition: border-color .2s ease, box-shadow .2s ease, color .2s ease, background .2s ease, transform .2s ease;
+
+    &:active {
+        transform: translateY(0) scale(.985);
+    }
+}
+
+.ant-btn-primary {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 8px 18px rgba(37, 99, 235, .18);
+
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 24px rgba(37, 99, 235, .24);
+    }
+
+    &:active {
+        transform: translateY(0);
+    }
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-picker,
+.ant-select-selector {
+    border-radius: 8px !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-input-number:hover,
+.ant-picker:hover,
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector {
+    border-color: #bfdbfe !important;
+}
+
+.ant-input:focus,
+.ant-input-affix-wrapper-focused,
+.ant-input-number-focused,
+.ant-picker-focused,
+.ant-select-focused:not(.ant-select-disabled) .ant-select-selector {
+    border-color: #93c5fd !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, .1) !important;
+}
+
+.ant-dropdown {
+    .ant-dropdown-menu {
+        padding: 8px;
+        border: 1px solid #e6edf5;
+        border-radius: 8px;
+        box-shadow: 0 18px 44px rgba(15, 23, 42, .14);
+    }
+
+    .ant-dropdown-menu-item {
+        min-height: 38px;
+        border-radius: 8px;
+        font-weight: 650;
+    }
+}
+
+.ant-table-wrapper {
+    .ant-table {
+        overflow: hidden;
+        border: 1px solid #edf2f7;
+        border-radius: 8px;
+    }
+
+    .ant-table-thead > tr > th {
+        color: #344054;
+        background: #f8fafc !important;
+        font-weight: 700;
+        letter-spacing: 0;
+    }
+
+    .ant-table-tbody > tr {
+        animation: adminRowIn .26s ease both;
+        transition: background .2s ease, transform .2s ease;
+
+        &:hover > td {
+            background: #f8fbff !important;
+        }
+
+        &:hover {
+            transform: translateX(2px);
+        }
+    }
+
+    .ant-pagination {
+        margin: 16px 8px;
+    }
+}
+
+.ant-pro-table {
+    .ant-pro-card {
+        border-radius: 8px;
+        border: 1px solid #e6edf5;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease;
+        animation: adminSurfaceIn .32s ease both;
+
+        &:hover {
+            border-color: #dbeafe;
+        }
+    }
+
+    .ant-pro-table-list-toolbar-title {
+        color: #172033;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .ant-pro-table-search {
+        margin-bottom: 16px;
+        border: 1px solid #e6edf5;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .04);
+    }
+}
+
+.ant-modal-content {
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, .18);
+    animation: adminSurfaceIn .24s cubic-bezier(.2, .78, .24, 1) both;
+}
+
+.ant-modal-header {
+    margin-bottom: 18px;
+}
+
+.ant-modal-title {
+    color: #172033;
+    font-weight: 800;
+}
+
+.ant-descriptions-bordered {
+    .ant-descriptions-item-label {
+        color: #526176;
+        background: #f8fafc !important;
+        font-weight: 700;
+    }
+
+    .ant-descriptions-item-content {
+        color: #172033;
+    }
+}
+
+.ant-tag {
+    border-radius: 8px;
+    font-weight: 700;
+}
+
 .ql-editor {
     min-height: 350px !important;
     overflow: hidden;
+}
+
+.layout-admin {
+    min-height: 100vh;
+    background: #f5f7fb;
+}
+
+.admin-sider {
+    border-right: 1px solid #e6edf5;
+    background:
+        linear-gradient(180deg, #ffffff, #f8fbff);
+    box-shadow: 8px 0 24px rgba(15, 23, 42, .04);
+
+    .ant-layout-sider-children {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ant-menu {
+        border-inline-end: 0 !important;
+        padding: 8px;
+    }
+
+    .ant-menu-item {
+        position: relative;
+        height: 42px;
+        margin-inline: 0;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: color .2s ease, background .2s ease, transform .2s ease;
+
+        &:hover {
+            transform: translateX(2px);
+        }
+    }
+
+    .ant-menu-item-selected {
+        color: #2563eb;
+        background: linear-gradient(90deg, #eff6ff, #ecfdf5);
+
+        &::before {
+            position: absolute;
+            top: 9px;
+            bottom: 9px;
+            left: 4px;
+            width: 3px;
+            border-radius: 999px;
+            background: #2563eb;
+            content: "";
+        }
+    }
+}
+
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 64px;
+    padding: 0 18px;
+    color: #172033;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.admin-brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #2563eb, #0f766e);
+    box-shadow: 0 10px 20px rgba(37, 99, 235, .2);
+}
+
+.admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    padding: 0 24px 0 8px;
+    border-bottom: 1px solid #e6edf5;
+    background: rgba(255, 255, 255, .95);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, .04);
+}
+
+.admin-header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-header-title strong {
+    color: #172033;
+    font-size: 16px;
+}
+
+.admin-header-title span {
+    color: #667085;
+    font-size: 12px;
+}
+
+.admin-user-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 4px 6px 4px 12px;
+    border: 1px solid #e6edf5;
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+
+    &:hover {
+        border-color: #bfdbfe;
+        box-shadow: 0 10px 22px rgba(37, 99, 235, .1);
+        transform: translateY(-1px);
+    }
+}
+
+.admin-content {
+    padding: 22px;
+}
+
+.admin-page-heading {
+    margin-bottom: 18px;
+}
+
+.admin-page-heading h1 {
+    margin: 0;
+    color: #172033;
+    font-size: 24px;
+    line-height: 1.25;
+}
+
+.admin-page-heading p {
+    margin: 6px 0 0;
+    color: #667085;
+}
+
+.dashboard-card {
+    overflow: hidden;
+    position: relative;
+
+    &::before {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #2563eb, #0f766e, #d97706);
+        content: "";
+    }
+}
+
+.dashboard-card .ant-card-body {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.dashboard-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 20px;
+}
+
+.dashboard-icon.users {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.dashboard-icon.jobs {
+    background: linear-gradient(135deg, #0f766e, #059669);
+}
+
+.dashboard-icon.resumes {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+}
+
+.admin-tabs-card {
+    padding: 18px;
+    border: 1px solid #e6edf5;
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, #ffffff, #f8fbff);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
+    animation: adminSurfaceIn .32s ease both;
+}
+
+.admin-tabs-card .ant-tabs-nav {
+    margin-bottom: 18px;
+}
+
+.ai-evaluation-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ai-evaluation-head {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid #e6edf5;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #f8fbff, #ffffff);
+    animation: adminSurfaceIn .26s ease both;
+}
+
+.ai-evaluation-summary {
+    min-width: 0;
+}
+
+.ai-evaluation-summary .ant-typography {
+    margin: 8px 0 0;
+}
+
+.ai-evaluation-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.ai-evaluation-grid > div {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #ffffff;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    animation: adminSurfaceIn .28s ease both;
+
+    &:hover {
+        border-color: #bfdbfe;
+        box-shadow: 0 10px 22px rgba(37, 99, 235, .08);
+        transform: translateY(-1px);
+    }
+}
+
+.ai-evaluation-body {
+    margin-top: 8px;
+}
+
+.ai-evaluation-list {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    color: #344054;
+}
+
+.ai-evaluation-list li + li {
+    margin-top: 5px;
 }
 
 .modal-company {
@@ -26,12 +539,6 @@
     &.close {
         .ant-modal-mask {
             background-color: unset !important;
-            // -webkit-transition: background-color 0.3s ease-in;
-            // /* Safari */
-            // transition: background-color 0s linear;
-            // -webkit-transition-delay: 0.3s;
-            // /* Safari */
-            // transition-delay: 0.2s;
         }
     }
 }
@@ -39,5 +546,47 @@
 .customize-form-item {
     .ant-form-item {
         margin-bottom: 0 !important;
+    }
+}
+
+@media (max-width: 767px) {
+    .ant-modal {
+        max-width: calc(100vw - 16px);
+        margin: 8px auto;
+    }
+
+    .ant-modal-content {
+        max-height: calc(100vh - 16px);
+        overflow: auto;
+    }
+
+    .ant-table-wrapper {
+        .ant-table {
+            font-size: 13px;
+        }
+    }
+
+    .admin-content {
+        padding: 14px;
+    }
+
+    .admin-header {
+        padding-right: 14px;
+    }
+
+    .ai-evaluation-head,
+    .ai-evaluation-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
     }
 }

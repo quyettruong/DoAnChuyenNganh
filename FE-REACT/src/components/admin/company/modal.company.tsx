@@ -1,7 +1,6 @@
 import { CheckSquareOutlined, LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { FooterToolbar, ModalForm, ProCard, ProFormText, ProFormTextArea } from "@ant-design/pro-components";
 import { Col, ConfigProvider, Form, Modal, Row, Upload, message, notification } from "antd";
-import 'styles/reset.scss';
 import { isMobile } from 'react-device-detect';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
